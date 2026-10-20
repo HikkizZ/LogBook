@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
-import { pino } from 'pino';
+import { createLogger } from '../logger.js';
 
 export interface ErrorDetail {
   path: string;
@@ -53,9 +53,7 @@ function body(code: ErrorCode, message: string, details?: ErrorDetail[]): ErrorB
   return { error: { code, message, ...(details ? { details } : {}) } };
 }
 
-const fallbackLogger = pino({
-  level: process.env['NODE_ENV'] === 'test' ? 'silent' : (process.env['LOG_LEVEL'] ?? 'info'),
-});
+const fallbackLogger = createLogger();
 
 /** Handler global (va al final de la cadena): formato de §4.2, nunca el stack ni el mensaje de un error inesperado. */
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request } from 'express';
 import { loginBodySchema } from 'shared';
 import type { LoginBody } from 'shared';
-import { requireAuth, requireCsrf, requireSession } from '../auth/middleware.js';
+import { authenticate, requireAuth, requireCsrf, requireSession } from '../auth/middleware.js';
 import { clearSessionCookie, sessionCookie } from '../auth/cookie.js';
 import { verifyPassword } from '../auth/password.js';
 import { createSession, revokeAllSessions, revokeSession } from '../auth/sessions.js';
@@ -21,15 +21,19 @@ function currentSessionId(req: Request): string {
   return req.auth.sessionId;
 }
 
-/** `/auth/login`, `/auth/logout`, `/auth/logout-all` y `/me` (spec §4.1). */
-export function authRoutes({ appOrigin, adminPasswordHash }: AuthRoutesOptions): Router {
+/**
+ * `POST /auth/login` (spec §4.1). Ruta pública: se monta antes del `requireAuth` general y con su propio
+ * limitador, que va tras CSRF y validación para contar solo contraseñas incorrectas (RS-05).
+ */
+export function loginRoutes({ appOrigin, adminPasswordHash }: AuthRoutesOptions): Router {
   const router = Router();
 
   router.post(
     '/auth/login',
-    loginRateLimit(),
+    authenticate,
     requireCsrf(appOrigin),
     validate({ body: loginBodySchema }),
+    loginRateLimit(),
     async (req, res) => {
       const { password } = req.body as LoginBody;
       if (!(await verifyPassword(adminPasswordHash, password))) {
@@ -42,6 +46,13 @@ export function authRoutes({ appOrigin, adminPasswordHash }: AuthRoutesOptions):
       res.status(204).end();
     },
   );
+
+  return router;
+}
+
+/** `/auth/logout`, `/auth/logout-all` y `/me` (spec §4.1). */
+export function authRoutes(): Router {
+  const router = Router();
 
   router.post('/auth/logout', requireAuth, requireSession, async (req, res) => {
     await revokeSession(currentSessionId(req));

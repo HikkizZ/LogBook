@@ -49,6 +49,23 @@ describe('RS-02 / RS-10 POST /auth/login', () => {
     expect(sixth.body.error.code).toBe('RATE_LIMITED');
   });
 
+  it('M-1 RS-05: cinco rechazos por CSRF o validación no consumen el límite del login', async () => {
+    const application = app();
+    for (let i = 0; i < 5; i++) {
+      const res = await request(application)
+        .post(LOGIN)
+        .set('Origin', CSRF.Origin)
+        .send({ password: TEST_PASSWORD });
+      expect(res.status).toBe(403);
+    }
+    for (let i = 0; i < 5; i++) {
+      const res = await request(application).post(LOGIN).set(CSRF).send({});
+      expect(res.status).toBe(400);
+    }
+    const ok = await request(application).post(LOGIN).set(CSRF).send({ password: TEST_PASSWORD });
+    expect(ok.status).toBe(204);
+  });
+
   it('RS-10 login sin X-Logbook-CSRF o con Origin ajeno o ausente responde 403', async () => {
     const application = app();
     const body = { password: TEST_PASSWORD };

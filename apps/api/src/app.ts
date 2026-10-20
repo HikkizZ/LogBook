@@ -4,17 +4,17 @@ import type { Express } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
-import { authLabel, authenticate, csrfGuard } from './auth/middleware.js';
+import { authLabel, authenticate, csrfGuard, requireAuth } from './auth/middleware.js';
 import { getDataSource } from './db/client.js';
-import { errorHandler } from './http/errors.js';
+import { AppError, errorHandler } from './http/errors.js';
 import { apiRateLimit } from './http/rate-limit.js';
 import { logger as defaultLogger } from './logger.js';
-import { authRoutes } from './routes/auth.js';
+import { authRoutes, loginRoutes } from './routes/auth.js';
 import { tokensRoutes } from './routes/tokens.js';
 
 export interface AppOptions {
   logger?: Logger;
-  /** Monta rutas extra bajo `/api/v1`, ya detrás de la autenticación y el CSRF (los tests lo usan para su ruta de prueba). */
+  /** Monta rutas extra bajo `/api/v1`, ya detrás de la autenticación obligatoria y el CSRF (los tests lo usan para su ruta de prueba). */
   extraRoutes?: (router: Router) => void;
 }
 
@@ -45,6 +45,11 @@ export function createApp(options: AppOptions = {}): Express {
 
   const app = express();
   app.set('trust proxy', trustProxySetting(process.env['TRUST_PROXY']));
+  if (process.env['NODE_ENV'] === 'production' && !process.env['TRUST_PROXY']?.trim()) {
+    (options.logger ?? defaultLogger).warn(
+      'TRUST_PROXY vacío en producción: todas las peticiones comparten la IP del proxy y los límites por IP (RS-05) pasan a ser globales',
+    );
+  }
 
   // RS-13: método, ruta (sin query), status, duración y credencial; sin headers ni bodies.
   app.use(
@@ -92,17 +97,24 @@ export function createApp(options: AppOptions = {}): Express {
 
   // RS-09: sin CORS (misma origen).
   const v1 = Router();
-  v1.use(authenticate, apiRateLimit(), csrfGuard(appOrigin));
 
-  // §4.12: sin auth. Si la base no responde, 503 para que el healthcheck de Docker lo vea.
+  // Rutas públicas (§4.1), antes de cualquier limitador general: /auth/login lleva el suyo (RS-05).
+  // §4.12: si la base no responde, 503 para que el healthcheck de Docker lo vea.
   v1.get('/health', async (_req, res) => {
     const db = await dbIsUp();
     res.status(db ? 200 : 503).json({ ok: db, db });
   });
+  v1.use(loginRoutes({ appOrigin, adminPasswordHash }));
 
-  v1.use(authRoutes({ appOrigin, adminPasswordHash }));
+  // Denegar por defecto: todo lo que se monte desde aquí exige autenticarse.
+  v1.use(authenticate, apiRateLimit(), csrfGuard(appOrigin), requireAuth);
+  v1.use(authRoutes());
   v1.use(tokensRoutes());
   options.extraRoutes?.(v1);
+  // Después de requireAuth: sin credencial una ruta desconocida da 401, no un 404 que revele qué existe.
+  v1.use(() => {
+    throw new AppError('NOT_FOUND');
+  });
 
   app.use('/api/v1', v1);
   app.use(errorHandler);
