@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /** `POST /auth/login` (spec §4.1). */
 export const loginBodySchema = z.object({
-  password: z.string().min(1),
+  password: z.string().min(1).max(1024),
 });
 export type LoginBody = z.infer<typeof loginBodySchema>;
 

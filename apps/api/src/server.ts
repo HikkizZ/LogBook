@@ -1,4 +1,5 @@
 import { createApp } from './app.js';
+import { assertPasswordHash } from './auth/password.js';
 import { startSessionPurge } from './auth/purge.js';
 import { setDataSource } from './db/client.js';
 import { createDataSource } from './db/data-source.js';
@@ -13,6 +14,13 @@ for (const name of ['DATABASE_URL', 'APP_ORIGIN', 'ADMIN_PASSWORD_HASH']) {
     logger.fatal(`Falta la variable de entorno ${name}`);
     process.exit(1);
   }
+}
+
+try {
+  assertPasswordHash(process.env['ADMIN_PASSWORD_HASH'] ?? '');
+} catch (err) {
+  logger.fatal((err as Error).message);
+  process.exit(1);
 }
 
 const dataSource = createDataSource(process.env['DATABASE_URL']);

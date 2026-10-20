@@ -98,6 +98,12 @@ export function createApp(options: AppOptions = {}): Express {
   // RS-09: sin CORS (misma origen).
   const v1 = Router();
 
+  // B-2: nada de lo que sirve la API (datos autenticados, errores) debe quedar en cachés.
+  v1.use((_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
+
   // Rutas públicas (§4.1), antes de cualquier limitador general: /auth/login lleva el suyo (RS-05).
   // §4.12: si la base no responde, 503 para que el healthcheck de Docker lo vea.
   v1.get('/health', async (_req, res) => {

@@ -35,6 +35,50 @@ describe('RS-02 / RS-10 POST /auth/login', () => {
     expect(res.status).toBe(400);
   });
 
+  it('B-3 RS-07 una contraseña de más de 1024 caracteres responde 400 VALIDATION_ERROR', async () => {
+    const res = await request(app())
+      .post(LOGIN)
+      .set(CSRF)
+      .send({ password: 'a'.repeat(1025) });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    const ok = await request(app())
+      .post(LOGIN)
+      .set(CSRF)
+      .send({ password: 'a'.repeat(1024) });
+    expect(ok.status).toBe(401);
+  });
+
+  it('B-3 RS-05: cinco intentos de 1025 caracteres no consumen el límite del login', async () => {
+    const application = app();
+    for (let i = 0; i < 5; i++) {
+      const res = await request(application)
+        .post(LOGIN)
+        .set(CSRF)
+        .send({ password: 'a'.repeat(1025) });
+      expect(res.status).toBe(400);
+    }
+    const ok = await request(application).post(LOGIN).set(CSRF).send({ password: TEST_PASSWORD });
+    expect(ok.status).toBe(204);
+  });
+
+  it('B-2 RS-10 las respuestas de /api/v1 llevan Cache-Control: no-store', async () => {
+    const application = app();
+    const cookie = await login(application);
+    const bearer = await newBearer();
+    for (const path of [ME, '/api/v1/tokens', '/api/v1/health', '/api/v1/no-existe']) {
+      const res = await request(application).get(path).set('Cookie', cookie);
+      expect(res.headers['cache-control'], path).toContain('no-store');
+    }
+    const unauth = await request(application).get(ME);
+    expect(unauth.status).toBe(401);
+    expect(unauth.headers['cache-control']).toContain('no-store');
+    const viaToken = await request(application).get(ME).set('Authorization', bearer);
+    expect(viaToken.headers['cache-control']).toContain('no-store');
+    const loginRes = await request(application).post(LOGIN).set(CSRF).send({ password: 'mal' });
+    expect(loginRes.headers['cache-control']).toContain('no-store');
+  });
+
   it('RS-05 el sexto intento fallido en 15 min responde 429, también con la contraseña buena', async () => {
     const application = app();
     for (let i = 0; i < 5; i++) {
