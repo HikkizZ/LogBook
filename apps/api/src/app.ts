@@ -1,17 +1,110 @@
-import express from 'express';
+import cookieParser from 'cookie-parser';
+import express, { Router, json } from 'express';
 import type { Express } from 'express';
 import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
+import type { Logger } from 'pino';
+import { pinoHttp } from 'pino-http';
+import { authLabel, authenticate, csrfGuard } from './auth/middleware.js';
+import { getDataSource } from './db/client.js';
+import { errorHandler } from './http/errors.js';
+import { apiRateLimit } from './http/rate-limit.js';
+import { logger as defaultLogger } from './logger.js';
+import { authRoutes } from './routes/auth.js';
+import { tokensRoutes } from './routes/tokens.js';
 
-export function createApp(): Express {
+export interface AppOptions {
+  logger?: Logger;
+  /** Monta rutas extra bajo `/api/v1`, ya detrás de la autenticación y el CSRF (los tests lo usan para su ruta de prueba). */
+  extraRoutes?: (router: Router) => void;
+}
+
+/** `TRUST_PROXY`: vacío = sin proxy; número = saltos; si no, subredes/IPs separadas por coma (RS-05). */
+function trustProxySetting(value: string | undefined): boolean | number | string[] {
+  const v = value?.trim() ?? '';
+  if (v === '') return false;
+  if (/^\d+$/.test(v)) return Number(v);
+  return v.split(',').map((s) => s.trim());
+}
+
+async function dbIsUp(): Promise<boolean> {
+  try {
+    await Promise.race([
+      getDataSource().query('SELECT 1'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000).unref()),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Arma la app Express sin escuchar puerto. Lee `APP_ORIGIN`, `ADMIN_PASSWORD_HASH` y `TRUST_PROXY` del entorno. */
+export function createApp(options: AppOptions = {}): Express {
+  const appOrigin = process.env['APP_ORIGIN'] ?? '';
+  const adminPasswordHash = process.env['ADMIN_PASSWORD_HASH'] ?? '';
+
   const app = express();
-  app.use(helmet());
-  app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 600 }));
+  app.set('trust proxy', trustProxySetting(process.env['TRUST_PROXY']));
 
-  // TODO(1.x): db real en el health check cuando el DataSource llegue a la app.
-  app.get('/api/v1/health', (_req, res) => {
-    res.json({ ok: true, db: false });
+  // RS-13: método, ruta (sin query), status, duración y credencial; sin headers ni bodies.
+  app.use(
+    pinoHttp({
+      logger: options.logger ?? defaultLogger,
+      serializers: {
+        req: (req: { id: unknown; method: string; url: string }) => ({
+          id: req.id,
+          method: req.method,
+          url: req.url.split('?')[0],
+        }),
+        res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+      },
+      customProps: (req) => ({ auth: authLabel(req as express.Request) }),
+    }),
+  );
+
+  // RS-08.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:'],
+          fontSrc: ["'self'"],
+          connectSrc: ["'self'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+        },
+      },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }),
+  );
+  app.use((_req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
   });
 
+  app.use(json({ limit: '256kb' }));
+  app.use(cookieParser());
+
+  // RS-09: sin CORS (misma origen).
+  const v1 = Router();
+  v1.use(authenticate, apiRateLimit(), csrfGuard(appOrigin));
+
+  // §4.12: sin auth. Si la base no responde, 503 para que el healthcheck de Docker lo vea.
+  v1.get('/health', async (_req, res) => {
+    const db = await dbIsUp();
+    res.status(db ? 200 : 503).json({ ok: db, db });
+  });
+
+  v1.use(authRoutes({ appOrigin, adminPasswordHash }));
+  v1.use(tokensRoutes());
+  options.extraRoutes?.(v1);
+
+  app.use('/api/v1', v1);
+  app.use(errorHandler);
   return app;
 }

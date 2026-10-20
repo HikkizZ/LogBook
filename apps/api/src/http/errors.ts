@@ -58,7 +58,7 @@ const fallbackLogger = pino({
 });
 
 /** Handler global (va al final de la cadena): formato de §4.2, nunca el stack ni el mensaje de un error inesperado. */
-export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (res.headersSent) {
     next(err);
     return;
@@ -81,6 +81,8 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
     return;
   }
 
-  fallbackLogger.error({ err }, 'error no controlado');
+  // pino-http pone req.log; en apps sin él (tests de los middlewares sueltos) se usa el logger propio.
+  const log = (req as { log?: typeof fallbackLogger }).log ?? fallbackLogger;
+  log.error({ err }, 'error no controlado');
   res.status(500).json(body('INTERNAL', DEFAULT_MESSAGE.INTERNAL));
 };

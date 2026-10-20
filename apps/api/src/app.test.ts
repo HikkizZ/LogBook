@@ -8,7 +8,7 @@ describe('health', () => {
   it('GET /api/v1/health responde ok', async () => {
     const res = await request(app()).get('/api/v1/health');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, db: false });
+    expect(res.body).toEqual({ ok: true, db: true });
   });
 });
 

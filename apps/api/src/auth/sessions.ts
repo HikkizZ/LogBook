@@ -7,6 +7,9 @@ export const SESSION_TTL_MS = 7 * 24 * HOUR_MS;
 export const SESSION_IDLE_MS = 12 * HOUR_MS;
 const LAST_SEEN_INTERVAL_MS = 60 * 1000;
 
+// 32 bytes en base64url = 43 caracteres; cualquier otro valor se rechaza sin consultar la base.
+const SESSION_ID_FORMAT = /^[A-Za-z0-9_-]{43}$/;
+
 export function hashSessionId(sessionId: string): string {
   return createHash('sha256').update(sessionId).digest('hex');
 }
@@ -34,6 +37,8 @@ export async function verifySession(
   sessionId: string,
   now: Date = new Date(),
 ): Promise<Session | null> {
+  if (!SESSION_ID_FORMAT.test(sessionId)) return null;
+
   const repo = getDataSource().getRepository(Session);
   const row = await repo.findOneBy({ idHash: hashSessionId(sessionId) });
   if (!row) return null;
