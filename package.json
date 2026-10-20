@@ -5,11 +5,11 @@
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "dev": "pnpm -r --parallel --filter api --filter web dev",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "eslint . && prettier --check .",
+    "dev": "pnpm --filter shared build && pnpm -r --parallel --filter api --filter web --filter shared dev",
+    "typecheck": "pnpm --filter shared build && pnpm -r typecheck",
+    "lint": "pnpm --filter shared build && eslint . && prettier --check .",
     "format": "prettier --write .",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter shared build && pnpm -r test",
     "build": "pnpm -r build",
     "db:up": "docker compose -f docker-compose.dev.yml up -d --wait",
     "db:down": "docker compose -f docker-compose.dev.yml down"
