@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach } from 'vitest';
+import { setDataSource } from '../db/client.js';
 import { createDataSource } from '../db/data-source.js';
 import { loadTestEnv } from '../env.js';
 import { setTestDataSource, testDataSource } from './db.js';
@@ -11,6 +12,7 @@ beforeAll(async () => {
   await dataSource.initialize();
   await dataSource.runMigrations();
   setTestDataSource(dataSource);
+  setDataSource(dataSource);
 });
 
 beforeEach(async () => {
