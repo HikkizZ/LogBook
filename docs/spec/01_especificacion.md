@@ -465,7 +465,7 @@ Sigue el flujo de `knowledge-vault/06_nexus_server/arquitectura.md` → "Flujo p
 | RD-09 | **Actualizar**: `cd /srv/apps/logbook && git pull && docker compose up -d --build`. Las migraciones corren solas. |
 | RD-10 | Documentar en `06_nexus_server/arquitectura.md` (tabla de apps), `setup_guia.md` (sección del despliegue) y `pendientes.md` al terminar la fase 8. |
 
-**Desarrollo local**: `docker-compose.dev.yml` solo con **Postgres 18** (`postgres:18-alpine`, dev en `127.0.0.1:5433`, test en `127.0.0.1:5434`, [preguntas 8 y 9 cerradas]). **No** se usa el Postgres 16 instalado en el PC: no tiene `uuidv7()` nativo y quiero la misma versión que en Nexus. API con `tsx watch` en 3200; web con Vite en 3201 proxyando `/api` a 3200, con `APP_ORIGIN=http://localhost:3201`. Un solo `pnpm dev` levanta ambos (`concurrently` o scripts de workspace en paralelo).
+**Desarrollo local**: `docker-compose.dev.yml` solo con **Postgres 18** (`postgres:18-alpine`, dev en `127.0.0.1:5435`, test en `127.0.0.1:5436`, [preguntas 8 y 9 cerradas]). **No** se usa el Postgres 16 instalado en el PC: no tiene `uuidv7()` nativo y quiero la misma versión que en Nexus. API con `tsx watch` en 3200; web con Vite en 3201 proxyando `/api` a 3200, con `APP_ORIGIN=http://localhost:3201`. Un solo `pnpm dev` levanta ambos (`concurrently` o scripts de workspace en paralelo).
 
 ---
 
