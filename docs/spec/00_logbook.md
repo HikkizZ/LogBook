@@ -4,7 +4,7 @@ Herramienta **personal, de un solo usuario**, para ordenarme en mi trabajo de de
 
 **Nombre**: **Logbook**, en `logbook.zytech.dev` (decidido 2026-10-20). Repo `HikkizZ/LogBook`, local en `C:\Users\fmira\Projects\LogBook-Zytech`; esta especificación vive en `docs/spec/` del repo. En el código, contenedores, rutas y variables se usa `logbook` en minúsculas.
 
-**Estado**: especificación escrita y preguntas 1–13 cerradas (2026-10-20). Sin código todavía. Se desplegará en mi servidor Nexus (`knowledge-vault/06_nexus_server/arquitectura.md`).
+**Estado**: especificación escrita y preguntas 1–13 cerradas (2026-10-20). Fase 1 (base de datos y autenticación) mergeada; fase 2 (API de dominio) en la rama `fase-2-dominio`. Se desplegará en mi servidor Nexus (`knowledge-vault/06_nexus_server/arquitectura.md`).
 
 ## Documentos
 
@@ -50,6 +50,33 @@ Tomadas por Fable al escribir la spec (cada una se puede revertir; están marcad
 - **Borrar = archivar** (`archived_at`), tanto proyectos como tarjetas. El borrado físico no existe en la API v1.
 - **API bajo `/api/v1`**: cuesta nada y la skill de Claude Code queda estable si algún día cambio el contrato.
 - **Búsqueda con `tsvector` de PostgreSQL** (configuración `spanish`), sin motor externo. Es un solo usuario con pocos miles de filas como mucho.
+
+## Decisiones de la fase 2 (2026-10-21)
+
+Las cerré al revisar la API de dominio (`docs/reviews/fase-2-seguridad.md`, D-1..D-9, y la sección "Diferencias con la spec" de `docs/api.md`). Están anotadas en [[01_especificacion]] con "(decidido 2026-10-21)"; las que exigen cambio de código van en la tarea 2.11 de [[03_plan_implementacion]].
+
+1. Etiqueta inexistente al crear/editar una tarjeta → 400 `VALIDATION_ERROR` (`details[].path = labels`); no se crea sola.
+2. No se crean tarjetas ni se traen tarjetas **hacia** un proyecto archivado → 409.
+3. Mover de columna una tarjeta archivada → 409 (hay que desarchivarla antes).
+4. Crear una tarjeta directamente en `in_progress`/`done` aplica RF-15 (`start_date`/`completed_at`) sin escribir entrada de bitácora.
+5. Si `due_date` ya pasó al entrar a `in_progress`, `start_date` queda vacío (para no romper `due_date >= start_date`).
+6. Filtros de `GET /cards`: `due_before` estricto (`due_date < fecha`); `archived=true` devuelve activas y archivadas juntas (igual que `GET /projects?archived=true`); `limit` máximo 200.
+7. `cardCounts` no cuenta archivadas; la búsqueda **sí** incluye tarjetas archivadas.
+8. Formato exacto del resumen markdown (RF-43) tal como está implementado: `## Semana N — from a to` / `## Día YYYY-MM-DD`, `_Sin actividad en el período._`, `### Proyecto`, `- **T-n** Título — parte; parte` con día `(mar 21)`, `Bloqueado: `, recorrido de columnas con el día del último movimiento; orden días ascendentes, proyectos por nombre, tarjetas por primera entrada, entradas cronológicas.
+9. Período de `/log` y `/summary`: sin fechas = hoy; con una sola = ese día; `from > to` o más de 366 días → 400.
+10. `GET /cards/:ref/log`: `limit` 100 por defecto, máximo 500. Entradas `moved`/`commit`/`pr` no se editan (400) pero sí se borran.
+11. Settings: `doneDaysVisible` 1..365, `wipDefault` 0..32767; `PATCH /settings` vacío → 400.
+12. Snippet de búsqueda: HTML escapado y solo `<mark>…</mark>` como HTML; el frontend lo sanitiza con DOMPurify `ALLOWED_TAGS: ['mark']`.
+13. **El `timezone` de `/settings` manda** sobre `APP_TIMEZONE` para agrupar días en `/log` y `/summary` y para "hoy" (RF-15); `APP_TIMEZONE` queda solo como valor inicial del seed/arranque.
+14. **`wipDefault`** de settings es el límite WIP que reciben los proyectos nuevos si no se indica otro.
+15. Mover o editar tarjetas de un proyecto archivado → 409 (igual que crear).
+16. Anotar en la bitácora, usar el checklist y editar una tarjeta **archivada** está permitido.
+17. Todas las fechas (`date` y `occurredAt`, filtros incluidos) aceptan solo el rango **1970-01-01 .. 2100-12-31**; fuera → 400.
+18. Crear una tarjeta directamente en `blocked` exige `reason` (queda como entrada `blocked`), igual que al moverla.
+19. Escape en `/summary`: títulos de tarjeta y nombres de proyecto **siempre escapados** como texto markdown; cuerpos de `note`/`blocked` quedan como markdown (los escribo yo); entradas `commit`/`pr` (v2, vienen de GitHub) se escapan.
+20. `GET /log` (y `format=json` de `/summary`) no incluye `description` en las tarjetas.
+21. `prefix` de `/tokens` se devuelve **con** `lb_` (como `/me` y la spec).
+22. Búsqueda sin tildes con respaldo ILIKE: se deja así y se mide; `unaccent`/`pg_trgm` solo si se vuelve lenta (nota, no requisito).
 
 ## Preguntas abiertas
 

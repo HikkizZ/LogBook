@@ -195,7 +195,7 @@ Modal pequeño (420 px): título "¿Por qué queda bloqueada T-42?", textarea ob
 
 ### 4.6 Búsqueda (`Ctrl+K` o `/`)
 
-Paleta de comandos centrada (560 px): input arriba, resultados en dos grupos (Tarjetas / Bitácora) con fragmento resaltado en `--color-primary-soft`, proyecto y estado a la derecha. `↑↓` navega, `Enter` abre. Si el texto es `T-42`, el primer resultado es esa tarjeta.
+Paleta de comandos centrada (560 px): input arriba, resultados en dos grupos (Tarjetas / Bitácora) con fragmento resaltado en `--color-primary-soft`, proyecto y estado a la derecha. `↑↓` navega, `Enter` abre. Si el texto es `T-42`, el primer resultado es esa tarjeta. El fragmento (`snippet`) llega de la API como texto escapado con `<mark>` como único HTML: se inyecta solo tras `DOMPurify.sanitize(snippet, { ALLOWED_TAGS: ['mark'], ALLOWED_ATTR: [] })`, y el `<mark>` se pinta con `--color-primary-soft`; título, proyecto y todo lo demás van como texto. Las tarjetas archivadas aparecen con el chip "archivada" (decidido 2026-10-21).
 
 ### 4.7 Tokens (`/tokens`)
 
@@ -204,7 +204,7 @@ Tabla: nombre, prefijo (mono), creado, último uso, **vence**, botón "Revocar" 
 ### 4.8 Etiquetas, Ajustes, Login
 
 - Etiquetas: lista editable con nombre, selector de color (las 7 claves), botón borrar con confirmación "Se quita de N tarjetas".
-- Ajustes: zona horaria, días visibles en Hecho, WIP por defecto. Al pie, una sección **"Sesión"** separada por un divisor: texto muted "Tu sesión vence tras 12 h sin uso o 7 días después de entrar" y dos botones: "Salir" (secundario; `POST /auth/logout`) y **"Cerrar todas las sesiones"** (destructivo; diálogo "Se cerrará la sesión en todos los navegadores, incluido este. Los tokens de API no se tocan." → `POST /auth/logout-all` → ir a `/login`, RF-64).
+- Ajustes: zona horaria (es la que agrupa Mi día / Mi semana y define "hoy"; texto de ayuda que lo diga), días visibles en Hecho (1..365), WIP por defecto para proyectos nuevos (0..32767) (decidido 2026-10-21). Al pie, una sección **"Sesión"** separada por un divisor: texto muted "Tu sesión vence tras 12 h sin uso o 7 días después de entrar" y dos botones: "Salir" (secundario; `POST /auth/logout`) y **"Cerrar todas las sesiones"** (destructivo; diálogo "Se cerrará la sesión en todos los navegadores, incluido este. Los tokens de API no se tocan." → `POST /auth/logout-all` → ir a `/login`, RF-64).
 - Login: pantalla centrada, logo texto, un campo contraseña (`autocomplete="current-password"`), botón "Entrar". Error genérico "Contraseña incorrecta". Tras 5 intentos fallidos la API responde 429: mostrar "Demasiados intentos, espera 15 minutos" (no un error genérico). Al entrar, la sesión queda en una cookie `httpOnly` que el frontend no ve ni guarda: no hay token en `localStorage`; la UI sabe si está autenticada preguntando `GET /me`. Cuando la sesión vence (12 h sin uso / 7 días) cualquier llamada responde 401 y la UI vuelve a `/login` con un aviso en la pantalla: "Tu sesión venció, vuelve a entrar" (texto muted bajo el formulario; no un toast, porque la pantalla cambió).
 
 ---
