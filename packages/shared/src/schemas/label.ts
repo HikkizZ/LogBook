@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateTimeSchema, uuidSchema } from './common.js';
+import { dateTimeSchema, text, uuidSchema } from './common.js';
 import { PROJECT_COLORS } from './project.js';
 
 /** Paleta de etiquetas (diseño §2.4): las de proyecto más `gris`. */
@@ -8,7 +8,7 @@ export const labelColorSchema = z.enum(LABEL_COLORS);
 export type LabelColor = z.infer<typeof labelColorSchema>;
 
 /** Nombre de etiqueta: `label.name` es varchar(40). */
-export const labelNameSchema = z.string().trim().min(1).max(40);
+export const labelNameSchema = text().trim().min(1).max(40);
 
 /** `POST /labels` (§4.7). */
 export const createLabelBodySchema = z.object({

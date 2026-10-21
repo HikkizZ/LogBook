@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { text } from './common.js';
 
 /** `POST /auth/login` (spec §4.1). */
 export const loginBodySchema = z.object({
@@ -8,6 +9,6 @@ export type LoginBody = z.infer<typeof loginBodySchema>;
 
 /** `POST /tokens` (spec §4.9): `name` es varchar(80). */
 export const createTokenBodySchema = z.object({
-  name: z.string().trim().min(1).max(80),
+  name: text().trim().min(1).max(80),
 });
 export type CreateTokenBody = z.infer<typeof createTokenBodySchema>;

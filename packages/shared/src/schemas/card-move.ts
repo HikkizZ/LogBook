@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { cardStatusSchema } from './card-status.js';
+import { text } from './common.js';
 
 /** Mínimo de caracteres del motivo al bloquear (RF-14). */
 export const BLOCK_REASON_MIN = 3;
@@ -12,6 +13,6 @@ export const BLOCK_REASON_MIN = 3;
 export const moveCardBodySchema = z.object({
   status: cardStatusSchema,
   position: z.number().int().min(0).optional(),
-  reason: z.string().trim().min(BLOCK_REASON_MIN).max(5000).optional(),
+  reason: text().trim().min(BLOCK_REASON_MIN).max(5000).optional(),
 });
 export type MoveCardBody = z.infer<typeof moveCardBodySchema>;

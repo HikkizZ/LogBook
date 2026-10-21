@@ -7,6 +7,7 @@ import {
   dateSchema,
   dateTimeSchema,
   slugSchema,
+  text,
   uuidSchema,
 } from './common.js';
 import { labelNameSchema } from './label.js';
@@ -16,8 +17,8 @@ export const CARD_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export const cardPrioritySchema = z.enum(CARD_PRIORITIES);
 export type CardPriority = z.infer<typeof cardPrioritySchema>;
 
-const titleSchema = z.string().trim().min(1).max(200);
-const descriptionSchema = z.string().max(20000);
+const titleSchema = text().trim().min(1).max(200);
+const descriptionSchema = text().max(20000);
 const labelNamesSchema = z.array(labelNameSchema).max(20);
 
 /** `due_date >= start_date` cuando ambas vienen en el body (la BD lo exige con un CHECK). */

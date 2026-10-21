@@ -134,6 +134,11 @@ function encodeCursor(card: Pick<Card, 'status' | 'position' | 'number'>): strin
   return Buffer.from(JSON.stringify(cursor)).toString('base64url');
 }
 
+/** `position` y `number` son int4 no negativos: lo demás no puede ser un cursor emitido por la API. */
+function isInt4(value: unknown): boolean {
+  return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_INT4;
+}
+
 function decodeCursor(raw: string): Cursor {
   const invalid = () =>
     new AppError('VALIDATION_ERROR', 'cursor: inválido', [{ path: 'cursor', message: 'inválido' }]);
@@ -144,8 +149,8 @@ function decodeCursor(raw: string): Cursor {
       !c ||
       typeof c.s !== 'string' ||
       !['backlog', 'todo', 'in_progress', 'review', 'blocked', 'done'].includes(c.s) ||
-      !Number.isSafeInteger(c.p) ||
-      !Number.isSafeInteger(c.n)
+      !isInt4(c.p) ||
+      !isInt4(c.n)
     ) {
       throw invalid();
     }

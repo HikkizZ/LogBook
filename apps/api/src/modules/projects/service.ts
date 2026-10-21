@@ -15,6 +15,8 @@ import { uniqueViolation } from '../../lib/pg-errors.js';
 import { slugify } from '../../lib/slug.js';
 
 const NAME_INDEX = 'UQ_project_name_active';
+const SLUG_INDEX = 'UQ_project_slug';
+const SLUG_ATTEMPTS = 5;
 const DUPLICATE_NAME = 'Ya existe un proyecto activo con ese nombre';
 
 export function toProjectDto(p: Project): ProjectDto {
@@ -85,17 +87,22 @@ export async function listProjects(includeArchived: boolean): Promise<ProjectWit
 }
 
 export async function createProject(body: CreateProjectBody): Promise<ProjectDto> {
-  const project = repo().create({
-    name: body.name,
-    slug: await uniqueSlug(body.name),
-    color: body.color,
-    githubRepo: body.githubRepo ?? null,
-    ...(body.wipLimit !== undefined ? { wipLimit: body.wipLimit } : {}),
-  });
-  try {
-    return toProjectDto(await repo().save(project));
-  } catch (err) {
-    return rethrowDuplicateName(err);
+  for (let attempt = 1; ; attempt++) {
+    const project = repo().create({
+      name: body.name,
+      slug: await uniqueSlug(body.name),
+      color: body.color,
+      githubRepo: body.githubRepo ?? null,
+      ...(body.wipLimit !== undefined ? { wipLimit: body.wipLimit } : {}),
+    });
+    try {
+      return toProjectDto(await repo().save(project));
+    } catch (err) {
+      // Otra alta simultánea tomó el mismo slug entre el cálculo y el INSERT: se recalcula (-2, -3…).
+      // Si además el nombre era el mismo, el reintento choca con el índice de nombre y da 409.
+      if (uniqueViolation(err) === SLUG_INDEX && attempt < SLUG_ATTEMPTS) continue;
+      return rethrowDuplicateName(err);
+    }
   }
 }
 

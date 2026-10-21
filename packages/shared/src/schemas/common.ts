@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/**
+ * Texto libre que entra por la API: rechaza el carácter NUL (`\u0000`), que Postgres no admite en `text`/`varchar`
+ * (RS-07). Encadenar `.trim()`, `.min()` y `.max()` como en cualquier `z.string()`.
+ */
+export const text = () =>
+  z.string().refine((s) => !s.includes('\0'), 'no puede contener el carácter NUL');
+
 export const uuidSchema = z.uuid();
 
 /** Referencia de tarjeta en la URL: `T-<n>` o uuid (spec §4, `:ref`). */

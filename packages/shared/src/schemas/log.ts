@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateSchema, dateTimeSchema, slugSchema, uuidSchema } from './common.js';
+import { dateSchema, dateTimeSchema, slugSchema, text, uuidSchema } from './common.js';
 
 export const LOG_KINDS = ['note', 'blocked', 'moved', 'commit', 'pr'] as const;
 export const logKindSchema = z.enum(LOG_KINDS);
@@ -26,7 +26,7 @@ export type LogEntryDto = z.infer<typeof logEntrySchema>;
 export const WRITABLE_LOG_KINDS = ['note', 'blocked'] as const;
 export const writableLogKindSchema = z.enum(WRITABLE_LOG_KINDS);
 
-const logBodySchema = z.string().trim().min(1).max(5000);
+const logBodySchema = text().trim().min(1).max(5000);
 /** Con offset de zona (`-03:00`) o `Z`; se guarda como instante. */
 const occurredAtSchema = z.iso.datetime({ offset: true });
 

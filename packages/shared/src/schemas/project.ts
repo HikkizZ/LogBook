@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateTimeSchema, booleanQuerySchema, slugSchema, uuidSchema } from './common.js';
+import { dateTimeSchema, booleanQuerySchema, slugSchema, text, uuidSchema } from './common.js';
 
 /** Claves de la paleta de proyectos (diseño §2.3); es lo que se guarda en `project.color`. */
 export const PROJECT_COLORS = [
@@ -20,7 +20,7 @@ export const githubRepoSchema = z
   .regex(/^[\w.-]+\/[\w.-]+$/);
 
 const wipLimitSchema = z.number().int().min(0).max(32767);
-const nameSchema = z.string().trim().min(1).max(80);
+const nameSchema = text().trim().min(1).max(80);
 
 /** `POST /projects` (§4.3). */
 export const createProjectBodySchema = z.object({
