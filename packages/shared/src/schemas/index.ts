@@ -8,3 +8,5 @@ export * from './checklist.js';
 export * from './log.js';
 export * from './log-groups.js';
 export * from './card-move.js';
+export * from './search.js';
+export * from './settings.js';
