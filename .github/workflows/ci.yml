@@ -47,6 +47,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm test
+      # Corre los tests de la API con cobertura (umbral de líneas 80 % en apps/api/vitest.config.ts)
+      # y los de web (shared no tiene tests); reemplaza a `pnpm test` para no correr la API dos veces.
+      - run: pnpm --filter api test:coverage
+      - run: pnpm --filter web test
       - run: pnpm build
       - run: pnpm audit --audit-level=high

@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
-import { createLogger } from '../logger.js';
+import { createLogger, serializeErr } from '../logger.js';
 
 export interface ErrorDetail {
   path: string;
@@ -81,6 +81,6 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
   // pino-http pone req.log; en apps sin él (tests de los middlewares sueltos) se usa el logger propio.
   const log = (req as { log?: typeof fallbackLogger }).log ?? fallbackLogger;
-  log.error({ err }, 'error no controlado');
+  log.error({ err: serializeErr(err) }, 'error no controlado');
   res.status(500).json(body('INTERNAL', DEFAULT_MESSAGE.INTERNAL));
 };

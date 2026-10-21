@@ -75,6 +75,16 @@ El token vence a los 90 días y se reemplaza creando otro. Probarlo:
 curl.exe -H "Authorization: Bearer lb_..." http://localhost:3200/api/v1/me
 ```
 
+## Prueba de humo
+
+Con la API corriendo y un token Bearer, `scripts/smoke.sh` crea un proyecto y una tarjeta, agrega una nota, la mueve a `blocked` con motivo, busca y pide `/summary`; al final archiva el proyecto de prueba. No necesita `jq`.
+
+```
+LOGBOOK_TOKEN=lb_... bash scripts/smoke.sh
+```
+
+`LOGBOOK_URL` es opcional (por defecto `http://localhost:3200/api/v1`). El script nunca imprime el token.
+
 ## Comandos (desde la raíz)
 
 | Comando          | Qué hace                              |

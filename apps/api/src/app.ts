@@ -9,6 +9,7 @@ import { getDataSource } from './db/client.js';
 import { AppError, errorHandler } from './http/errors.js';
 import { apiRateLimit } from './http/rate-limit.js';
 import { logger as defaultLogger } from './logger.js';
+import { domainRoutes } from './modules/index.js';
 import { authRoutes, loginRoutes } from './routes/auth.js';
 import { tokensRoutes } from './routes/tokens.js';
 
@@ -116,6 +117,7 @@ export function createApp(options: AppOptions = {}): Express {
   v1.use(authenticate, apiRateLimit(), csrfGuard(appOrigin), requireAuth);
   v1.use(authRoutes());
   v1.use(tokensRoutes());
+  v1.use(domainRoutes());
   options.extraRoutes?.(v1);
   // Después de requireAuth: sin credencial una ruta desconocida da 401, no un 404 que revele qué existe.
   v1.use(() => {

@@ -25,7 +25,7 @@ describe('RS-01 / RS-03 POST /tokens', () => {
     expect(res.status).toBe(201);
     expect(res.body.token).toMatch(/^lb_[A-Za-z0-9_-]{8}\.[A-Za-z0-9_-]{43}$/);
     expect(res.body.name).toBe('Claude Code PC');
-    expect(res.body.prefix).toBe(res.body.token.slice(3, 11));
+    expect(res.body.prefix).toBe(res.body.token.slice(0, 11));
     expect(res.body.expiresAt).toBe(new Date(T0.getTime() + 90 * DAY).toISOString());
     expect(Object.keys(res.body).sort()).toEqual(['expiresAt', 'id', 'name', 'prefix', 'token']);
   });

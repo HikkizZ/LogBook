@@ -4,6 +4,7 @@ import { startSessionPurge } from './auth/purge.js';
 import { setDataSource } from './db/client.js';
 import { createDataSource } from './db/data-source.js';
 import { loadEnv } from './env.js';
+import { assertTimezone } from './lib/clock.js';
 import { createLogger } from './logger.js';
 
 loadEnv();
@@ -18,6 +19,7 @@ for (const name of ['DATABASE_URL', 'APP_ORIGIN', 'ADMIN_PASSWORD_HASH']) {
 
 try {
   assertPasswordHash(process.env['ADMIN_PASSWORD_HASH'] ?? '');
+  assertTimezone(process.env['APP_TIMEZONE'] ?? '');
 } catch (err) {
   logger.fatal((err as Error).message);
   process.exit(1);
