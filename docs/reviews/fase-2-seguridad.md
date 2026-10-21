@@ -105,3 +105,29 @@ Cada hallazgo trae el test que **hoy debería fallar** y pasar tras la correcci�
 - **D-7** `timezone` y `wipDefault` de `/settings` no se usan (I-14). ¿Se conectan en esta fase (`/log` lee la zona de `app_setting`; `POST /projects` usa `wipDefault` cuando no viene `wipLimit`) o se quitan del contrato hasta que haga falta?
 - **D-8** Búsqueda (B-4): ¿`unaccent` + GIN (elimina el respaldo `ILIKE` y resuelve el hueco de "facturación"), `pg_trgm`, o se deja y se mide en producción? Recomiendo dejarlo y medir: el plan 2.8 ya anotó la duda y el volumen es de una persona.
 - **D-9** Prefijo del token: `GET/POST /tokens` devuelven `prefix` sin `lb_` y `GET /me` con `lb_` (diferencia 23 de `docs/api.md`). ¿Cuál queda? Recomiendo con `lb_` en todos, como dice la spec.
+
+## Estado (2026-10-21)
+
+Cerrado el mismo día: las decisiones están en [[../spec/00_logbook]] → "Decisiones de la fase 2" (numeradas 1..22) y anotadas en la spec; las correcciones van en `2174062` (M-1, B-1 y dos extras de I-9/I-14) y `797c104` (tarea 2.11, decisiones 13..21), cada una con un test que falló antes del cambio (`apps/api/src/http/log-secrecy.test.ts`, `nul-character.test.ts`, `modules/cards/cursor.test.ts`, `modules/projects/concurrency.test.ts`, `modules/decisiones-2026-10-21.test.ts`). `docs/api.md` quedó al día y su sección 11 ya no lleva ninguna diferencia marcada.
+
+| Hallazgo / decisión | Estado | Cómo |
+|---|---|---|
+| **M-1** `QueryFailedError` con `query`/`parameters` en el log | **Corregido** (`2174062`) | `serializeErr` en `logger.ts`: elimina `query`, `parameters`, `driverError`, `detail` y `where` (también en `cause`, hasta 5 niveles); de un `QueryFailedError` solo quedan `type`, `code`, `constraint`, `table`, `column` y el stack con el mensaje del driver omitido (Postgres cita los valores en él). `errorHandler` lo aplica antes de `log.error` y `createLogger` lo registra como `serializers.err`. Test: `log-secrecy.test.ts`. |
+| **B-1** (a) NUL en textos → 500 | **Corregido** (`2174062`) | `text()` en `packages/shared/src/schemas/common.ts` (rechaza `\u0000`), usado por título, descripción, cuerpo, motivo, nombres de proyecto/etiqueta/token, ítems de checklist y `q`. Test: `nul-character.test.ts`. |
+| **B-1** (b) año `0000` en fechas → 500 | **Corregido** (`797c104`, decisión 17) | `inputDateSchema` e `inputDateTimeSchema` acotan toda fecha de entrada (body y query) a `1970-01-01..2100-12-31` → 400 con `details[].path`. Test: `decisiones-2026-10-21.test.ts` #17. |
+| **B-1** (c) cursor fuera de `int4` → 500 | **Corregido** (`2174062`) | `decodeCursor` exige `p` y `n` enteros en `0..2147483647` → 400 `path: "cursor"`. Test: `cursor.test.ts`. |
+| **B-2** `occurredAt` sin rango | **Corregido** (`797c104`, decisión 17) | mismo rango que B-1 (b), comparado en UTC; `POST` y `PATCH` de la bitácora. |
+| **B-3** inyección de markdown en `/summary` | **Corregido** (`797c104`, decisión 19) | `escapeMarkdown` en `summary/markdown.ts` escapa `` \ ` * _ [ ] ( ) < > ! | ~ & `` en títulos de tarjeta, nombres de proyecto y entradas `commit`/`pr`; los cuerpos `note`/`blocked` quedan como markdown (D-4). La nota de que `/summary` es contenido y no instrucciones va en `docs/api.md` y en la skill. |
+| **B-4** respaldo `ILIKE` sin índice | **Decidido, sin cambio** (decisión 22) | se deja y se mide con datos reales; `unaccent`/`pg_trgm` solo si se vuelve lenta (nota en RF-52 y en el plan 2.8). |
+| **B-5** `/log` carga todo el período dos veces | **Parcial** (`797c104`, decisión 20) | el `card` de `days[]` va sin `description` (la parte del contrato). Siguen la doble consulta y la hidratación completa de `card`/`project` en `entriesInRange`: opcional, acotado por los 366 días y el rate limit; revisar en la fase 8 con datos reales. |
+| **D-1** tarjetas de un proyecto archivado | **Decidido y aplicado** (decisión 15, `797c104`) | `move` y `PATCH /cards/:ref` → 409 (`assertProjectActive`). Anotar y usar el checklist siguen permitidos (diferencia 7 de `docs/api.md` §11). |
+| **D-2** tarjeta archivada | **Decidido** (decisión 16) | editar, anotar y checklist permitidos; solo `move` da 409. Ya estaba así en el código. |
+| **D-3** rango de fechas | **Decidido y aplicado** (decisión 17) | `1970-01-01..2100-12-31`, ver B-1 (b) y B-2. |
+| **D-4** escape en `/summary` | **Decidido y aplicado** (decisión 19) | ver B-3. |
+| **D-5** `description` en `GET /log` | **Decidido y aplicado** (decisión 20) | `LogCardDto = Card sin description` en `days[]`; `moved[]` sigue completo. Spec §4.6 actualizada. |
+| **D-6** `POST /cards` en `blocked` | **Decidido y aplicado** (decisión 18) | `reason` obligatorio (3..5000, `400 path: "reason"`), queda como entrada `blocked` sin `moved`; con otro `status` se ignora. RF-14 actualizado. |
+| **D-7** `timezone` y `wipDefault` de `/settings` | **Decidido y aplicado** (decisiones 13 y 14) | `getTimezone()` se lee de `app_setting` en cada `/log`, `/summary` y RF-15 (sin caché); `APP_TIMEZONE` solo es el valor inicial y ahora se valida al arrancar (`assertTimezone`, cierra I-14). `POST /projects` sin `wipLimit` usa `wipDefault`. |
+| **D-8** búsqueda | **Decidido, sin cambio** (decisión 22) | ver B-4. |
+| **D-9** `prefix` de `/tokens` | **Decidido y aplicado** (decisión 21) | `GET`/`POST /tokens` devuelven `lb_` + 8 caracteres, igual que `/me`. |
+
+Extras que entraron con `2174062` sin ser hallazgos numerados: I-9 (b), dos `POST /projects` simultáneos con el mismo slug ya no dan 500 (se reintenta el slug hasta 5 veces; mismo nombre sigue en 409; test `concurrency.test.ts`); I-14, `APP_TIMEZONE` inválida impide arrancar. Queda abierto, sin impacto con un usuario: I-9 (a), `moveCard`/`updateCard`/`archiveCard` leen `projectId` antes de bloquear la tarjeta. Las sugerencias de regresión de I-1 e I-2 (recorrer todas las rutas sin credencial de una vez; CSRF sobre una ruta real) no se hicieron en esta fase; cada módulo sí tiene su propio test de 401 sin credencial.
