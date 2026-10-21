@@ -44,3 +44,18 @@ export async function login(application: Express): Promise<string> {
 export async function newBearer(name = 'Test'): Promise<string> {
   return `Bearer ${(await createToken(name)).token}`;
 }
+
+/** Cliente Supertest con `Authorization` fijo (por defecto un Bearer nuevo) y prefijo `/api/v1`. */
+export async function client(application: Express = app(), authorization?: string) {
+  const auth = authorization ?? (await newBearer());
+  const base = (method: 'get' | 'post' | 'patch' | 'delete') => (path: string) =>
+    request(application)[method](`/api/v1${path}`).set('Authorization', auth);
+  return {
+    get: base('get'),
+    post: base('post'),
+    patch: base('patch'),
+    delete: base('delete'),
+  };
+}
+
+export type TestClient = Awaited<ReturnType<typeof client>>;
