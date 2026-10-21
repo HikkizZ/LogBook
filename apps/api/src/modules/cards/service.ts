@@ -9,10 +9,11 @@ import type {
 import type { EntityManager } from 'typeorm';
 import { getDataSource } from '../../db/client.js';
 import { Card, ChecklistItem, Label, LogEntry, Project } from '../../entities/index.js';
-import type { CardStatus } from '../../entities/index.js';
+import type { CardStatus, LogSource } from '../../entities/index.js';
 import { AppError } from '../../http/errors.js';
-import { dateInAppTimezone, now } from '../../lib/clock.js';
+import { dateInTimezone, now } from '../../lib/clock.js';
 import { toChecklistItemDto } from '../checklist/dto.js';
+import { getTimezone } from '../settings/service.js';
 import { toLogEntryDto } from '../log/dto.js';
 import { branchName } from './branch.js';
 import { compactColumn, endPosition, lockProjects } from './positions.js';
@@ -171,7 +172,7 @@ export async function listCards(query: ListCardsQuery): Promise<CardListDto> {
   }
   if (query.status) qb.andWhere('c.status IN (:...statuses)', { statuses: query.status });
   if (query.priority) qb.andWhere('c.priority = :priority', { priority: query.priority });
-  // TODO(spec): `due_before` es estricto (due_date < fecha).
+  // `due_before` es estricto: due_date < fecha (decidido 2026-10-21, #6).
   if (query.due_before) qb.andWhere('c.due_date < :dueBefore', { dueBefore: query.due_before });
   if (query.label) {
     qb.andWhere(
@@ -180,7 +181,7 @@ export async function listCards(query: ListCardsQuery): Promise<CardListDto> {
       { label: query.label },
     );
   }
-  // TODO(spec): `archived=true` incluye las archivadas junto a las activas (como `GET /projects?archived=true`).
+  // `archived=true` incluye las archivadas junto a las activas, como `GET /projects?archived=true` (#6).
   if (!query.archived) qb.andWhere('c.archived_at IS NULL');
   if (query.cursor) {
     const c = decodeCursor(query.cursor);
@@ -225,7 +226,7 @@ async function resolveLabels(m: EntityManager, names: string[]): Promise<Label[]
     else missing.push(name);
   }
   if (missing.length > 0) {
-    // TODO(spec): la spec no dice qué pasa con una etiqueta inexistente; se responde 400 (no se crea sola).
+    // Una etiqueta inexistente es 400 y no se crea sola (#1).
     throw new AppError(
       'VALIDATION_ERROR',
       `labels: etiqueta inexistente: ${missing.join(', ')}`,
@@ -248,9 +249,15 @@ async function setLabels(m: EntityManager, cardId: string, labels: Label[]): Pro
 async function projectForWrite(m: EntityManager, slug: string): Promise<Project> {
   const project = await m.findOneBy(Project, { slug });
   if (!project) throw new AppError('NOT_FOUND', 'Proyecto no encontrado');
-  // TODO(spec): no se crean ni mueven tarjetas hacia un proyecto archivado (409).
+  // No se crean ni se traen tarjetas hacia un proyecto archivado (#2): 409.
   if (project.archivedAt) throw new AppError('CONFLICT', 'El proyecto está archivado');
   return project;
+}
+
+/** Las tarjetas de un proyecto archivado son de solo lectura (#15): `move` y `PATCH` dan 409. */
+export function assertProjectActive(project: Pick<Project, 'archivedAt'>): void {
+  if (project.archivedAt)
+    throw new AppError('CONFLICT', 'El proyecto de la tarjeta está archivado');
 }
 
 function assertDatesInOrder(startDate: string | null, dueDate: string | null): void {
@@ -262,16 +269,17 @@ function assertDatesInOrder(startDate: string | null, dueDate: string | null): v
 }
 
 /**
- * RF-15: al entrar a `in_progress` se completa `start_date` con hoy si estaba vacía.
- * TODO(spec): si la fecha límite ya pasó, hoy rompería `due_date >= start_date`; en ese caso no se completa.
+ * RF-15: al entrar a `in_progress` se completa `start_date` con hoy (en la zona `timeZone` de `/settings`, #13)
+ * si estaba vacía. Si la fecha límite ya pasó, hoy rompería `due_date >= start_date`: no se completa (#5).
  */
 export function autoStartDate(
   startDate: string | null,
   dueDate: string | null,
   at: Date,
+  timeZone: string,
 ): string | null {
   if (startDate) return startDate;
-  const today = dateInAppTimezone(at);
+  const today = dateInTimezone(at, timeZone);
   return dueDate && dueDate < today ? null : today;
 }
 
@@ -283,7 +291,10 @@ export async function lockCard(m: EntityManager, id: string): Promise<Card> {
   return card;
 }
 
-export async function createCard(body: CreateCardBody): Promise<CardDto> {
+export async function createCard(
+  body: CreateCardBody,
+  source: Extract<LogSource, 'ui' | 'api'>,
+): Promise<CardDto> {
   return getDataSource().transaction(async (m) => {
     const project = await projectForWrite(m, body.project);
     await lockProjects(m, [project.id]);
@@ -292,8 +303,10 @@ export async function createCard(body: CreateCardBody): Promise<CardDto> {
     const at = now();
     const dueDate = body.dueDate ?? null;
     let startDate = body.startDate ?? null;
-    // TODO(spec): al crear directamente en `in_progress`/`done` se aplica RF-15 igual que en un movimiento.
-    if (status === 'in_progress') startDate = autoStartDate(startDate, dueDate, at);
+    // Crear directamente en `in_progress`/`done` aplica RF-15 igual que un movimiento, sin entrada de bitácora (#4).
+    if (status === 'in_progress') {
+      startDate = autoStartDate(startDate, dueDate, at, await getTimezone(m));
+    }
 
     const saved = await m.save(
       m.create(Card, {
@@ -309,6 +322,16 @@ export async function createCard(body: CreateCardBody): Promise<CardDto> {
       }),
     );
     await setLabels(m, saved.id, labels);
+    // Crear en `blocked` deja el motivo como entrada `blocked`, sin `moved` (#18; el esquema ya exige `reason`).
+    if (status === 'blocked' && body.reason) {
+      await m.insert(LogEntry, {
+        cardId: saved.id,
+        kind: 'blocked',
+        source,
+        body: body.reason,
+        occurredAt: at,
+      });
+    }
     const items = body.checklist ?? [];
     if (items.length > 0) {
       await m.insert(
@@ -327,6 +350,7 @@ export async function updateCard(cardId: string, body: UpdateCardBody): Promise<
     const target = body.project ? await projectForWrite(m, body.project) : null;
     await lockProjects(m, target ? [before.projectId, target.id] : [before.projectId]);
     const card = await lockCard(m, cardId);
+    assertProjectActive(await m.findOneByOrFail(Project, { id: card.projectId }));
 
     if (body.title !== undefined) card.title = body.title;
     if (body.description !== undefined) card.description = body.description;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { blockReasonSchema } from './card-move.js';
 import { cardStatusSchema } from './card-status.js';
 import { checklistItemSchema, checklistTextSchema } from './checklist.js';
 import {
@@ -6,6 +7,7 @@ import {
   cardRefSchema,
   dateSchema,
   dateTimeSchema,
+  inputDateSchema,
   slugSchema,
   text,
   uuidSchema,
@@ -29,7 +31,7 @@ const DATES_ISSUE = { message: 'dueDate no puede ser anterior a startDate', path
 
 export const cardRefParamsSchema = z.object({ ref: cardRefSchema });
 
-/** `POST /cards` (§4.4). */
+/** `POST /cards` (§4.4). `reason` es obligatorio con `status: blocked` (RF-14) y se ignora con los demás. */
 export const createCardBodySchema = z
   .object({
     project: slugSchema,
@@ -38,11 +40,16 @@ export const createCardBodySchema = z
     status: cardStatusSchema.optional(),
     priority: cardPrioritySchema.optional(),
     labels: labelNamesSchema.optional(),
-    dueDate: dateSchema.nullish(),
-    startDate: dateSchema.nullish(),
+    dueDate: inputDateSchema.nullish(),
+    startDate: inputDateSchema.nullish(),
     checklist: z.array(checklistTextSchema).max(100).optional(),
+    reason: blockReasonSchema.optional(),
   })
-  .refine(datesInOrder, DATES_ISSUE);
+  .refine(datesInOrder, DATES_ISSUE)
+  .refine((v) => v.status !== 'blocked' || v.reason !== undefined, {
+    message: 'obligatorio al crear en Bloqueado',
+    path: ['reason'],
+  });
 export type CreateCardBody = z.infer<typeof createCardBodySchema>;
 
 /** `PATCH /cards/:ref`: no cambia `status` (para eso está `move`); cualquier otro campo es 400. */
@@ -52,8 +59,8 @@ export const updateCardBodySchema = z
     description: descriptionSchema.optional(),
     priority: cardPrioritySchema.optional(),
     labels: labelNamesSchema.optional(),
-    dueDate: dateSchema.nullable().optional(),
-    startDate: dateSchema.nullable().optional(),
+    dueDate: inputDateSchema.nullable().optional(),
+    startDate: inputDateSchema.nullable().optional(),
     project: slugSchema.optional(),
   })
   .refine(datesInOrder, DATES_ISSUE);
@@ -70,7 +77,7 @@ export const listCardsQuerySchema = z.object({
   status: statusListSchema.optional(),
   label: labelNameSchema.optional(),
   priority: cardPrioritySchema.optional(),
-  due_before: dateSchema.optional(),
+  due_before: inputDateSchema.optional(),
   archived: booleanQuerySchema.optional(),
   limit: z.coerce.number().int().min(1).max(200).default(100),
   cursor: z.string().min(1).max(200).optional(),

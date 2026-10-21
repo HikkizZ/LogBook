@@ -442,7 +442,11 @@ describe('§4.4 GET /cards: filtros y cursor', () => {
       newCard(api, { project, title, ...extra });
     await c('alfa', 'a-backlog');
     await c('alfa', 'a-doing', { status: 'in_progress', priority: 'high', labels: ['bug'] });
-    await c('alfa', 'a-blocked', { status: 'blocked', dueDate: '2026-03-05' });
+    await c('alfa', 'a-blocked', {
+      status: 'blocked',
+      dueDate: '2026-03-05',
+      reason: 'espero respuesta',
+    });
     await c('alfa', 'a-done', { status: 'done', labels: ['feature'], dueDate: '2026-04-01' });
     await c('beta', 'b-doing', { status: 'in_progress' });
     return api;

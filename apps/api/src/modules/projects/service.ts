@@ -13,6 +13,7 @@ import { AppError } from '../../http/errors.js';
 import { now } from '../../lib/clock.js';
 import { uniqueViolation } from '../../lib/pg-errors.js';
 import { slugify } from '../../lib/slug.js';
+import { getSettings } from '../settings/service.js';
 
 const NAME_INDEX = 'UQ_project_name_active';
 const SLUG_INDEX = 'UQ_project_slug';
@@ -87,13 +88,15 @@ export async function listProjects(includeArchived: boolean): Promise<ProjectWit
 }
 
 export async function createProject(body: CreateProjectBody): Promise<ProjectDto> {
+  // Sin `wipLimit`, el proyecto nuevo recibe el `wipDefault` de `/settings` (RF-13, #14).
+  const wipLimit = body.wipLimit ?? (await getSettings()).wipDefault;
   for (let attempt = 1; ; attempt++) {
     const project = repo().create({
       name: body.name,
       slug: await uniqueSlug(body.name),
       color: body.color,
       githubRepo: body.githubRepo ?? null,
-      ...(body.wipLimit !== undefined ? { wipLimit: body.wipLimit } : {}),
+      wipLimit,
     });
     try {
       return toProjectDto(await repo().save(project));

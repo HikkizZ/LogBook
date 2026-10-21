@@ -1,11 +1,12 @@
 import type { CardDto, MoveCardBody } from 'shared';
 import { getDataSource } from '../../db/client.js';
-import { Card, LogEntry } from '../../entities/index.js';
+import { Card, LogEntry, Project } from '../../entities/index.js';
 import type { CardStatus, LogSource } from '../../entities/index.js';
 import { AppError } from '../../http/errors.js';
 import { now } from '../../lib/clock.js';
+import { getTimezone } from '../settings/service.js';
 import { applyPositions, columnIds, compactColumn, lockProjects } from './positions.js';
-import { autoStartDate, loadCardDto, lockCard } from './service.js';
+import { assertProjectActive, autoStartDate, loadCardDto, lockCard } from './service.js';
 
 /** Nombres de las columnas (RF-10), para el texto de la entrada `moved`. */
 export const COLUMN_NAME: Record<CardStatus, string> = {
@@ -37,8 +38,10 @@ export async function moveCard(
     await lockProjects(m, [before.projectId]);
     const card = await lockCard(m, cardId);
 
-    // TODO(spec): una tarjeta archivada no está en ninguna columna; moverla da 409 (hay que desarchivarla antes).
+    // Una tarjeta archivada no está en ninguna columna: moverla da 409 (hay que desarchivarla antes, #3).
     if (card.archivedAt) throw new AppError('CONFLICT', 'La tarjeta está archivada');
+    // Un proyecto archivado es de solo lectura: sus tarjetas no se mueven (#15).
+    assertProjectActive(await m.findOneByOrFail(Project, { id: card.projectId }));
 
     const from = card.status;
     const to = body.status;
@@ -57,7 +60,9 @@ export async function moveCard(
     const at = now();
     if (changed) {
       card.status = to;
-      if (to === 'in_progress') card.startDate = autoStartDate(card.startDate, card.dueDate, at);
+      if (to === 'in_progress') {
+        card.startDate = autoStartDate(card.startDate, card.dueDate, at, await getTimezone(m));
+      }
       if (to === 'done') card.completedAt = at;
       if (from === 'done') card.completedAt = null;
     }

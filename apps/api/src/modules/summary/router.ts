@@ -11,7 +11,7 @@ export function summaryRoutes(): Router {
 
   router.get('/summary', validate({ query: summaryQuerySchema }), async (req, res) => {
     const query = req.query as unknown as SummaryQuery;
-    const range = resolveRange(query);
+    const range = await resolveRange(query);
     const log = await buildLog(range, query);
     if (query.format === 'json') {
       res.json(log);

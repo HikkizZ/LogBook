@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { dateSchema, dateTimeSchema, slugSchema, text, uuidSchema } from './common.js';
+import {
+  dateTimeSchema,
+  inputDateSchema,
+  inputDateTimeSchema,
+  slugSchema,
+  text,
+  uuidSchema,
+} from './common.js';
 
 export const LOG_KINDS = ['note', 'blocked', 'moved', 'commit', 'pr'] as const;
 export const logKindSchema = z.enum(LOG_KINDS);
@@ -28,7 +35,7 @@ export const writableLogKindSchema = z.enum(WRITABLE_LOG_KINDS);
 
 const logBodySchema = text().trim().min(1).max(5000);
 /** Con offset de zona (`-03:00`) o `Z`; se guarda como instante. */
-const occurredAtSchema = z.iso.datetime({ offset: true });
+const occurredAtSchema = inputDateTimeSchema;
 
 const kindListSchema = z
   .string()
@@ -63,8 +70,8 @@ export type UpdateLogEntryBody = z.infer<typeof updateLogEntryBodySchema>;
 export const LOG_RANGE_MAX_DAYS = 366;
 
 const rangeShape = {
-  from: dateSchema.optional(),
-  to: dateSchema.optional(),
+  from: inputDateSchema.optional(),
+  to: inputDateSchema.optional(),
   project: slugSchema.optional(),
   kinds: kindListSchema.optional(),
 };

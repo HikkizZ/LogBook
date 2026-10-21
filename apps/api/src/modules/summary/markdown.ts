@@ -21,6 +21,16 @@ function dayLabel(date: string): string {
 
 const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim();
 
+/**
+ * Escapa `text` para que markdown lo trate como texto plano (RS-12, decidido 2026-10-21, #19): antepone `\` a
+ * los caracteres que abren énfasis, enlaces, imágenes, código, HTML o tablas. Se usa en títulos de tarjeta y
+ * nombres de proyecto, y en las entradas `commit`/`pr` (v2, vienen de GitHub). Los cuerpos `note`/`blocked`
+ * son markdown escrito por el dueño y no pasan por aquí.
+ */
+export function escapeMarkdown(text: string): string {
+  return text.replace(/[\\`*_[\]()<>!|~&]/g, '\\$&');
+}
+
 interface CardAcc {
   ref: string;
   title: string;
@@ -47,10 +57,9 @@ function movePath(entry: LogEntryDto): [CardStatus, CardStatus] | null {
  * - **T-42** Título — avancé X, quedó Y (mar 21); Por hacer → En curso (mié 22)
  * ```
  *
- * TODO(spec): el ejemplo de la spec no cubre varios días ni entradas de sistema; se eligió: una línea por
- * tarjeta con sus entradas escritas en orden (cada una con su día), `blocked` con prefijo "Bloqueado: ", y al
- * final el recorrido de columnas de las entradas `moved` con el día del último movimiento. Un día suelto
- * se titula `## Día <fecha>`; sin entradas, `_Sin actividad en el período._`.
+ * Una línea por tarjeta con sus entradas escritas en orden (cada una con su día), `blocked` con prefijo
+ * "Bloqueado: ", y al final el recorrido de columnas de las entradas `moved` con el día del último movimiento.
+ * Un día suelto se titula `## Día <fecha>`; sin entradas, `_Sin actividad en el período._` (#8).
  */
 export function renderSummary(range: { from: string; to: string }, log: LogGroupsDto): string {
   const header =
@@ -80,7 +89,10 @@ export function renderSummary(range: { from: string; to: string }, log: LogGroup
             acc.path.push(COLUMN_NAME[moved[1]]);
             acc.movedOn = day.date;
           } else {
-            const text = oneLine(entry.body);
+            // `commit`/`pr` vienen de GitHub (v2): texto plano, se escapan; `note`/`blocked` son markdown propio.
+            const line = oneLine(entry.body);
+            const text =
+              entry.kind === 'commit' || entry.kind === 'pr' ? escapeMarkdown(line) : line;
             const prefix = entry.kind === 'blocked' ? 'Bloqueado: ' : '';
             acc.parts.push(`${prefix}${text} (${dayLabel(day.date)})`);
           }
@@ -97,9 +109,9 @@ export function renderSummary(range: { from: string; to: string }, log: LogGroup
     const lines = [...cards.values()].map((c) => {
       const parts = [...c.parts];
       if (c.path.length > 0) parts.push(`${c.path.join(' → ')} (${dayLabel(c.movedOn)})`);
-      return `- **${c.ref}** ${c.title} — ${parts.join('; ')}`;
+      return `- **${c.ref}** ${escapeMarkdown(c.title)} — ${parts.join('; ')}`;
     });
-    blocks.push(`### ${name}`, lines.join('\n'));
+    blocks.push(`### ${escapeMarkdown(name)}`, lines.join('\n'));
   }
   return `${blocks.join('\n\n')}\n`;
 }

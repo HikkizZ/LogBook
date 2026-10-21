@@ -9,7 +9,7 @@ function isTimeZone(value: string): boolean {
   }
 }
 
-// TODO(spec): la spec no fija rangos; se acotan a lo razonable (wip como `project.wip_limit`).
+// Rangos decididos el 2026-10-21 (§4.12): wip como `project.wip_limit`.
 const timezoneSchema = z.string().refine(isTimeZone, 'zona horaria IANA inválida');
 const doneDaysVisibleSchema = z.number().int().min(1).max(365);
 const wipDefaultSchema = z.number().int().min(0).max(32767);

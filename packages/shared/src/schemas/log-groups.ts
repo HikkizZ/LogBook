@@ -4,6 +4,10 @@ import { dateSchema } from './common.js';
 import { logEntrySchema } from './log.js';
 import { projectSchema } from './project.js';
 
+/** `Card` sin `description`: es el que lleva `days[]` en `GET /log` y `GET /summary?format=json` (decidido 2026-10-21). */
+export const logCardSchema = cardSchema.omit({ description: true });
+export type LogCardDto = z.infer<typeof logCardSchema>;
+
 /** `GET /log` (§4.6): día → proyecto → tarjeta, más las tarjetas que cambiaron de columna en el período. */
 export const logGroupsSchema = z.object({
   days: z.array(
@@ -12,7 +16,7 @@ export const logGroupsSchema = z.object({
       projects: z.array(
         z.object({
           project: projectSchema,
-          cards: z.array(z.object({ card: cardSchema, entries: z.array(logEntrySchema) })),
+          cards: z.array(z.object({ card: logCardSchema, entries: z.array(logEntrySchema) })),
         }),
       ),
     }),

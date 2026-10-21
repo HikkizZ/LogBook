@@ -3,8 +3,11 @@ export function now(): Date {
   return new Date();
 }
 
-/** Zona horaria de la app (`APP_TIMEZONE`, UTC si no está definida). */
-export function appTimezone(): string {
+/**
+ * Zona horaria inicial (`APP_TIMEZONE`, UTC si no está definida): solo vale mientras `app_setting` no tenga la
+ * fila `timezone`; después manda el `timezone` de `/settings` (decidido 2026-10-21, #13).
+ */
+export function initialTimezone(): string {
   return process.env['APP_TIMEZONE']?.trim() || 'UTC';
 }
 
@@ -19,9 +22,8 @@ export function assertTimezone(value: string): void {
   }
 }
 
-/** Fecha `YYYY-MM-DD` de un instante en la zona `APP_TIMEZONE` (UTC si no está definida). */
-export function dateInAppTimezone(instant: Date): string {
-  const timeZone = appTimezone();
+/** Fecha `YYYY-MM-DD` de un instante en la zona IANA `timeZone`. */
+export function dateInTimezone(instant: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',

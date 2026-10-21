@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createCardBodySchema, listCardsQuerySchema, updateCardBodySchema } from 'shared';
 import type { CreateCardBody, ListCardsQuery, UpdateCardBody } from 'shared';
 import { validate } from '../../http/validate.js';
+import { sourceOf } from '../log/dto.js';
 import { currentCard, loadCard } from './load-card.js';
 import {
   archiveCard,
@@ -21,7 +22,7 @@ export function cardsRoutes(): Router {
   });
 
   router.post('/cards', validate({ body: createCardBodySchema }), async (req, res) => {
-    res.status(201).json(await createCard(req.body as CreateCardBody));
+    res.status(201).json(await createCard(req.body as CreateCardBody, sourceOf(req)));
   });
 
   router.get('/cards/:ref', ...loadCard, async (_req, res) => {

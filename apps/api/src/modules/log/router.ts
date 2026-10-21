@@ -58,7 +58,7 @@ export function logRoutes(): Router {
 
   router.get('/log', validate({ query: logRangeQuerySchema }), async (req, res) => {
     const query = req.query as unknown as LogRangeQuery;
-    res.json(await buildLog(resolveRange(query), query));
+    res.json(await buildLog(await resolveRange(query), query));
   });
 
   return router;

@@ -22,7 +22,7 @@ export function tokensRoutes(): Router {
       rows.map((r) => ({
         id: r.id,
         name: r.name,
-        prefix: r.prefix,
+        prefix: `lb_${r.prefix}`,
         lastUsedAt: r.lastUsedAt,
         createdAt: r.createdAt,
         expiresAt: r.expiresAt,
@@ -37,7 +37,7 @@ export function tokensRoutes(): Router {
     res.status(201).json({
       id: row.id,
       name: row.name,
-      prefix: row.prefix,
+      prefix: `lb_${row.prefix}`,
       token,
       expiresAt: row.expiresAt,
     });

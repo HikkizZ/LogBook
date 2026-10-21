@@ -1,6 +1,8 @@
 import type {
+  CardDto,
   CardLogQuery,
   CreateLogEntryBody,
+  LogCardDto,
   LogEntryDto,
   LogGroupsDto,
   LogRangeQuery,
@@ -10,9 +12,10 @@ import { getDataSource } from '../../db/client.js';
 import { LogEntry } from '../../entities/index.js';
 import type { Card, LogKind, LogSource, Project } from '../../entities/index.js';
 import { AppError } from '../../http/errors.js';
-import { dateInAppTimezone, now } from '../../lib/clock.js';
+import { dateInTimezone, now } from '../../lib/clock.js';
 import { loadCardDtos } from '../cards/service.js';
 import { findProjectBySlug, toProjectDto } from '../projects/service.js';
+import { getTimezone } from '../settings/service.js';
 import { toLogEntryDto } from './dto.js';
 
 const DAY_MS = 86_400_000;
@@ -83,22 +86,30 @@ export async function deleteEntry(id: string): Promise<void> {
 // ---------------------------------------------------------------------------------------------
 // Bitácora agregada por día → proyecto → tarjeta
 
+/** El `Card` de `days[]` va sin `description` (#20). */
+function toLogCard(card: CardDto): LogCardDto {
+  const { description, ...rest } = card;
+  void description;
+  return rest;
+}
+
 export interface DateRange {
   from: string;
   to: string;
 }
 
-/** Sin `from`/`to` = hoy; con uno solo = ese día. Los días son de `APP_TIMEZONE`. */
-export function resolveRange(query: Pick<LogRangeQuery, 'from' | 'to'>): DateRange {
-  const from = query.from ?? query.to ?? dateInAppTimezone(now());
+/** Sin `from`/`to` = hoy; con uno solo = ese día. Los días son los del `timezone` de `/settings` (#13). */
+export async function resolveRange(query: Pick<LogRangeQuery, 'from' | 'to'>): Promise<DateRange> {
+  const from = query.from ?? query.to ?? dateInTimezone(now(), await getTimezone());
   return { from, to: query.to ?? from };
 }
 
 type EntryWithCard = LogEntry & { card: Card & { project: Project } };
 
-/** Entradas cuyo día local (`APP_TIMEZONE`) cae en el período, en orden cronológico. */
+/** Entradas cuyo día local (en `timeZone`) cae en el período, en orden cronológico. */
 async function entriesInRange(
   range: DateRange,
+  timeZone: string,
   kinds: LogKind[] | undefined,
   projectId: string | undefined,
 ): Promise<EntryWithCard[]> {
@@ -117,7 +128,7 @@ async function entriesInRange(
     .addOrderBy('l.id', 'ASC')
     .getMany()) as EntryWithCard[];
   return rows.filter((e) => {
-    const day = dateInAppTimezone(e.occurredAt);
+    const day = dateInTimezone(e.occurredAt, timeZone);
     return day >= range.from && day <= range.to;
   });
 }
@@ -126,16 +137,17 @@ async function entriesInRange(
  * `GET /log`: día → proyecto → tarjeta. Días ascendentes, proyectos por nombre, tarjetas en el orden de su
  * primera entrada del día, entradas cronológicas. `moved` = tarjetas con una entrada `moved` en el período
  * (sea cual sea `kinds`), la movida hace menos tiempo al final.
- * TODO(spec): la spec no fija el orden de proyectos y tarjetas dentro de un día; se eligió el de arriba.
+ * El `card` de `days[]` va sin `description`; el de `moved[]`, completo (#20).
  */
 export async function buildLog(
   range: DateRange,
   filters: Pick<LogRangeQuery, 'project' | 'kinds'>,
 ): Promise<LogGroupsDto> {
   const projectId = filters.project ? (await findProjectBySlug(filters.project)).id : undefined;
+  const timeZone = await getTimezone();
   const [entries, movedEntries] = await Promise.all([
-    entriesInRange(range, filters.kinds, projectId),
-    entriesInRange(range, ['moved'], projectId),
+    entriesInRange(range, timeZone, filters.kinds, projectId),
+    entriesInRange(range, timeZone, ['moved'], projectId),
   ]);
 
   // Las entradas vienen en orden cronológico: la última de cada tarjeta fija su lugar en `moved`.
@@ -153,7 +165,7 @@ export async function buildLog(
   type Day = Map<string, { project: Project; cards: Map<string, LogEntryDto[]> }>;
   const byDay = new Map<string, Day>();
   for (const e of entries) {
-    const date = dateInAppTimezone(e.occurredAt);
+    const date = dateInTimezone(e.occurredAt, timeZone);
     const day: Day = byDay.get(date) ?? new Map();
     byDay.set(date, day);
     const group = day.get(e.card.projectId) ?? { project: e.card.project, cards: new Map() };
@@ -171,8 +183,8 @@ export async function buildLog(
         .map(({ project, cards }) => ({
           project: toProjectDto(project),
           cards: [...cards.entries()].flatMap(([cardId, list]) => {
-            const card = cardDtos.get(cardId);
-            return card ? [{ card, entries: list }] : [];
+            const full = cardDtos.get(cardId);
+            return full ? [{ card: toLogCard(full), entries: list }] : [];
           }),
         })),
     })),
