@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Misma base que db-test de docker-compose.dev.yml; .env.test apunta a 127.0.0.1:5436.
+    services:
+      db-test:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: logbook
+          POSTGRES_PASSWORD: logbook_test
+          POSTGRES_DB: logbook
+        ports:
+          - 5436:5432
+        options: >-
+          --health-cmd "pg_isready -U logbook -d logbook"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Toma la versión de "packageManager" en package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm audit --audit-level=high
