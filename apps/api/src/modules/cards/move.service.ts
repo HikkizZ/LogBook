@@ -8,7 +8,7 @@ import { applyPositions, columnIds, compactColumn, lockProjects } from './positi
 import { autoStartDate, loadCardDto, lockCard } from './service.js';
 
 /** Nombres de las columnas (RF-10), para el texto de la entrada `moved`. */
-const COLUMN_NAME: Record<CardStatus, string> = {
+export const COLUMN_NAME: Record<CardStatus, string> = {
   backlog: 'Backlog',
   todo: 'Por hacer',
   in_progress: 'En curso',

@@ -6,4 +6,5 @@ export * from './label.js';
 export * from './card.js';
 export * from './checklist.js';
 export * from './log.js';
+export * from './log-groups.js';
 export * from './card-move.js';
