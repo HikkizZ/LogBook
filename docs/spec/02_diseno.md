@@ -76,6 +76,8 @@ Seis pares: un **acento** (para el punto junto al nombre y para el texto del chi
 
 Medido el 2026-10-20. Mi primera propuesta tenía magenta `#B5457D`, turquesa `#1F7A8C` y oliva `#6A7A2A`, que daban 4.2–4.4:1 sobre su suave (fallaban AA); los oscurecí. Todos los acentos dan ≥ 5:1 sobre blanco, así que sirven también como texto suelto (nombre del proyecto en una lista). Sobre las barras de la línea de tiempo el texto va en `--color-fg` (≥ 10:1 sobre cualquier suave). Si al verlos alguno choca con los de estado (turquesa vs sidebar es el que más dudo), se reemplaza; la clave queda.
 
+En la revisión de la fase 3 medí los seis acentos sobre `--color-sidebar` (`#03363D`): dan **2,15–2,41:1**, no solo el turquesa. No los reemplazo: el acento es para fondos claros (barra superior, listas, chips). Sobre la sidebar el punto de proyecto usa el **suave** (≥ 12:1 sobre el verde), ver §3 (decidido 2026-10-22).
+
 ### 2.4 Colores de etiqueta
 
 Mismas seis claves que los proyectos más `gris` (acento `#5E6A74` sobre suave `#F2F4F5`, 5.0:1 ✓; el secundario `#68737D` sobre ese gris da 4.4:1 y falla, por eso el acento gris es un token aparte: `--color-neutral`). Las etiquetas se muestran como chips pequeños con texto en acento sobre suave; nunca llenas de color.
@@ -97,10 +99,15 @@ Nada por debajo de 12 px. Pesos: 400, 500, 600 (no 700).
 
 ### 2.6 Espaciado, radios, sombras
 
-- Escala de espaciado: `4, 8, 12, 16, 24, 32` px (`--space-1..6`).
+- Escala de espaciado: `4, 8, 12, 16, 24, 32` px. No hay tokens `--space-*`: el espaciado sale de la escala `--spacing` de Tailwind (0,25 rem) con los multiplicadores `1, 2, 3, 4, 6, 8` (`gap-4`, `p-6`, …). Los `--space-1..6` que declaré en la fase 3 no los usaba nada y los eliminé (decidido 2026-10-22). La escala no se impone por CSS; se revisa a ojo (nada de `mb-5`).
 - Radios: `--radius-sm: 4px` (chips, inputs, botones), `--radius-md: 6px` (tarjetas, paneles, diálogos). Nada más redondo.
 - Sombras: `--shadow-card: 0 1px 2px rgb(0 0 0 / 6%)` (tarjeta en reposo), `--shadow-lift: 0 4px 12px rgb(0 0 0 / 12%)` (tarjeta arrastrándose, diálogos). Sin más niveles.
+- Anchos fijos: `--container-dialog: 420px` (diálogo de §4.3), `--container-dialog-wide: 560px` (diálogo de atajos de §6.2), `--container-login: 360px` (formulario de login de §4.8).
+- Scrim: `--color-scrim: rgb(0 0 0 / 40%)`, el fondo oscurecido del `Dialog` (§5).
+- Skeleton: `--animate-skeleton: skeleton 1.6s ease-in-out infinite` (keyframe `skeleton`: opacidad 0,5 al 50 %), la "animación suave" de carga de §5.
 - Transiciones: 120 ms `ease-out` para hover/foco; 180 ms para abrir el panel de detalle. Desactivadas bajo `prefers-reduced-motion`.
+
+Los cuatro tokens de anchos, scrim y skeleton aparecieron en la fase 3 y los documento aquí para que §2 siga siendo la única fuente (decidido 2026-10-22).
 
 ### 2.7 Declaración en Tailwind v4
 
@@ -114,6 +121,11 @@ Nada por debajo de 12 px. Pesos: 400, 500, 600 (no 700).
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --radius-sm: 4px;
   --radius-md: 6px;
+  --color-scrim: rgb(0 0 0 / 40%);
+  --container-dialog: 420px;
+  --container-dialog-wide: 560px;
+  --container-login: 360px;
+  --animate-skeleton: skeleton 1.6s ease-in-out infinite;
 }
 ```
 
@@ -142,7 +154,7 @@ Para modo oscuro después: mover los valores a `:root { ... }` y usar `@theme in
 └──────────┴───────────────────────────────────────────┴──────────┘
 ```
 
-- **Sidebar** fija de 240 px, fondo `--color-sidebar`, texto blanco, ítem activo con fondo `--color-sidebar-hover` y barra blanca de 3 px a la izquierda. Secciones: vistas globales (Mi día, Mi semana, Línea de tiempo), proyectos (punto con el acento del proyecto + nombre + contador de "En curso"), al pie: Etiquetas, Tokens, Ajustes. Colapsable a 56 px (solo iconos) con `[` ; estado recordado en `localStorage`.
+- **Sidebar** fija de 240 px, fondo `--color-sidebar`, texto blanco, ítem activo con fondo `--color-sidebar-hover` y barra blanca de 3 px a la izquierda. Secciones: vistas globales (Mi día, Mi semana, Línea de tiempo), proyectos (punto con el color **suave** del proyecto + nombre + contador de "En curso"), al pie: Etiquetas, Tokens, Ajustes. Colapsable a 56 px (solo iconos) con `[` ; estado recordado en `localStorage`. El punto va en suave y no en acento porque el acento sobre `#03363D` da ~2:1 y no distingue nada; sobre blanco (barra superior, listas) el punto sigue en acento (decidido 2026-10-22, §2.3).
 - **Barra superior** de 56 px, fondo `--color-surface`, borde inferior `--color-border`. Izquierda: título de la vista (y nombre del proyecto con su punto). Centro/derecha: filtros, campo de búsqueda (`/`), botón primario "Nueva tarjeta" (`n`).
 - **Contenido** con padding 24 px sobre `--color-bg`.
 - **Panel de detalle** de tarjeta: lateral derecho de 480 px que se superpone al contenido (no lo empuja), con sombra `--shadow-lift`; se cierra con `Esc` o clic fuera. La URL cambia a `/p/<slug>/T-42` para poder enlazar. En pantallas < 1024 px ocupa todo el ancho.
@@ -211,7 +223,7 @@ Tabla: nombre, prefijo (mono), creado, último uso, **vence**, botón "Revocar" 
 
 ## 5. Componentes y estados
 
-Componentes en `apps/web/src/components/ui/`. Cada uno tiene todos los estados de esta tabla; el kit (`/_kit`, se borra antes de publicar) los muestra todos.
+Componentes en `apps/web/src/components/ui/`. Cada uno tiene todos los estados de esta tabla; el kit (`/_kit`, **solo en desarrollo**) los muestra todos. No se borra: es la única comprobación visual de esta tabla y lo necesito en cada fase. La ruta se registra solo con `import.meta.env.DEV`, así que Vite la deja fuera del bundle de producción (decidido 2026-10-22).
 
 | Componente | Reposo | Hover | Foco (teclado) | Activo / seleccionado | Deshabilitado |
 |---|---|---|---|---|---|
@@ -219,15 +231,17 @@ Componentes en `apps/web/src/components/ui/`. Cada uno tiene todos los estados d
 | `Button` secundario | surface, borde border-strong, texto fg | surface-hover | anillo | borde primary | ídem |
 | `Button` destructivo | texto danger, borde danger | fondo danger-soft | anillo (color danger) | — | ídem |
 | `Input` / `Textarea` | surface, borde border-strong, 32 px | borde fg-muted | borde primary + anillo | — | fondo bg, texto muted |
-| `Select` | como Input, chevron a la derecha | ídem | ídem | lista con ítem resaltado primary-soft | ídem |
+| `Select` | como Input, chevron a la derecha | ídem | ídem | lista nativa del navegador (v1, sin resaltado propio); el multi-select de etiquetas de la fase 5 es propio y lleva el ítem resaltado primary-soft (decidido 2026-10-22) | ídem |
 | `Checkbox` | 16 px, borde border-strong, radio 4 | borde primary | anillo | fondo primary, check blanco | opacidad 50 % |
 | `Chip` (estado, etiqueta, proyecto) | texto acento sobre soft, 20 px alto, radio sm, xs | — | — | — | — |
 | `CardTile` | §4.1 | sombra lift ligera, borde fg-muted | anillo + borde primary | arrastrando: sombra lift, rotación 1°, opacidad 90 %; placeholder: contorno discontinuo border-strong | archivada: opacidad 60 % |
 | `ColumnHeader` | nombre md + contador muted | — | — | WIP superado: contador warning + fondo warning-soft en el contador | — |
 | `SidebarItem` | sidebar-fg-muted | sidebar-hover, texto blanco | anillo blanco (sobre verde) | sidebar-hover, barra blanca izquierda, texto blanco | — |
 | `Dialog` | surface, radio md, sombra lift, fondo oscurecido 40 % | — | foco atrapado dentro | — | — |
-| `Toast` | surface, borde izq. 3 px (success/danger), 4 s, esquina inferior derecha | — | — | — | — |
+| `Toast` | surface, borde izq. 3 px (success/danger), 4 s, esquina inferior derecha | — | — | con acción (p. ej. "Reintentar"): no se cierra solo, queda hasta cerrarlo o usar la acción | — |
 | `Tooltip` | fg sobre fondo `#2F3941`, texto blanco, xs, 300 ms de retardo | — | aparece también con foco | — | — |
+
+Toasts: los que llevan un botón de acción no se cierran solos (un "Reintentar" que se esfuma a los 4 s no se alcanza con teclado); los demás siguen con sus 4 s (decidido 2026-10-22).
 
 Carga: skeletons grises (`surface-hover`) con animación suave; nunca spinners de página completa salvo el primer arranque. Error de red: toast rojo + reintento; `401` → ir al login (con el aviso de sesión vencida de §4.8); `403` → toast rojo con el `message` de la API (no debería ocurrir desde la UI: significa que faltó el header CSRF o el `Origin` no coincide, es decir, un bug).
 
@@ -267,6 +281,8 @@ Carga: skeletons grises (`surface-hover`) con animación suave; nunca spinners d
 
 Los atajos de una letra no se activan cuando el foco está en un input.
 
+Mi teclado es **latinoamericano**: `[` se escribe con AltGr, que en Windows llega como `ctrlKey && altKey`. El detector de atajos trata AltGr como "sin modificador" para los atajos de un carácter, así que `[` funciona en cualquier distribución; Alt solo sigue descartando el evento (decidido 2026-10-22). `/` es Shift+7 y llega como `/` sin AltGr, no tiene este problema.
+
 ### 6.3 Checklist de revisión (fin de fase 5)
 
 - [ ] Navegar todo el kanban, mover una tarjeta y bloquearla solo con teclado.
@@ -283,3 +299,8 @@ Los atajos de una letra no se activan cuando el foco está en un input.
 - Paleta de proyectos (10): la de §2.3, aprobada.
 - Columna Revisión (6): confirmada; el kanban tiene 6 columnas y Revisión lleva la barra discontinua de §2.2.
 - Login y sesión (7, 12): cookie `httpOnly`, 12 h / 7 d; lo que afecta al diseño está en §4.7 (vencimiento de tokens) y §4.8 (Ajustes → Sesión, Login).
+
+`TODO(diseño)` del código de la fase 3, resueltos el 2026-10-22 tras la revisión ([[../reviews/fase-3-diseno]]):
+
+- `Select.tsx`: nativo en v1, §5 corregido; el multi-select de etiquetas (fase 5) será propio.
+- `KitPage.tsx`: `/_kit` no se borra, queda solo en desarrollo; §5 corregido.
