@@ -1,5 +1,8 @@
 import { cardPrioritySchema, type CardDto, type CardPriority, type CardStatus } from 'shared';
 
+/** Rejilla de seis columnas del tablero (y de su esqueleto): 160 px mínimo cada una. */
+export const BOARD_GRID_CLASS = 'grid grid-cols-[repeat(6,minmax(10rem,1fr))] gap-4';
+
 /** Las seis columnas fijas, en orden (RF-10). */
 export const COLUMNS: { status: CardStatus; name: string }[] = [
   { status: 'backlog', name: 'Backlog' },

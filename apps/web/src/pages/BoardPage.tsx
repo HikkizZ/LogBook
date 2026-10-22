@@ -6,7 +6,7 @@ import { useRegisterNewCard } from '../app/NewCardContext';
 import { Board } from '../components/board/Board';
 import { Button, Skeleton } from '../components/ui';
 import { ApiError } from '../api/client';
-import { parseFilters } from '../lib/board';
+import { BOARD_GRID_CLASS, parseFilters } from '../lib/board';
 import { todayIn } from '../lib/dates';
 
 const DEFAULT_DONE_DAYS = 14;
@@ -40,7 +40,7 @@ function ProjectBoard({ slug }: { slug: string }) {
   }, []);
   useRegisterNewCard(openNewCard);
 
-  if (cards.isPending || settings.isPending) return <BoardSkeleton />;
+  if (cards.isPending || settings.isPending || projects.isPending) return <BoardSkeleton />;
   if (cards.isError) {
     const notFound = cards.error instanceof ApiError && cards.error.status === 404;
     return (
@@ -84,11 +84,7 @@ function ProjectBoard({ slug }: { slug: string }) {
 
 function BoardSkeleton() {
   return (
-    <div
-      role="status"
-      aria-label="Cargando tarjetas"
-      className="grid grid-cols-[repeat(6,minmax(10rem,1fr))] gap-4"
-    >
+    <div role="status" aria-label="Cargando tarjetas" className={BOARD_GRID_CLASS}>
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i} className="flex flex-col gap-2">
           <Skeleton className="h-8" />

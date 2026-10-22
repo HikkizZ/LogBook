@@ -17,9 +17,11 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useNavigate } from 'react-router';
 import type { CardDto, CardStatus } from 'shared';
+import { ApiError } from '../../api/client';
 import { useCreateCard, useMoveCard } from '../../api/queries';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import {
+  BOARD_GRID_CLASS,
   COLUMN_DROP_PREFIX,
   COLUMNS,
   groupByStatus,
@@ -164,7 +166,10 @@ export function Board({
         toast.show({
           tone: 'danger',
           message: `No se pudo crear "${title}": ${error.message}`,
-          action: { label: 'Reintentar', onClick: () => createCard(status, title) },
+          action:
+            error instanceof ApiError && error.status === 0
+              ? { label: 'Reintentar', onClick: () => createCard(status, title) }
+              : undefined,
         });
       });
     createQueue.current = createQueue.current.then(run);
@@ -212,6 +217,8 @@ export function Board({
   const announcements: Announcements = {
     onDragStart: ({ active }) => `${refOf(active.id)} tomada.`,
     onDragOver: ({ active, over }) => {
+      // Al tomar la tarjeta dnd-kit ya la da por "sobre" sí misma: no se repite tras "tomada".
+      if (over?.id === active.id) return undefined;
       const where = describePlace(over?.id);
       return where
         ? `${refOf(active.id)} sobre ${where}.`
@@ -253,11 +260,13 @@ export function Board({
   };
 
   useHotkeys({
-    j: () => focusNeighbour(1, 0),
-    k: () => focusNeighbour(-1, 0),
-    h: () => focusNeighbour(0, -1),
-    l: () => focusNeighbour(0, 1),
+    // Con una tarjeta tomada el teclado es del arrastre: ni mover el foco ni abrir "Mover a…".
+    j: () => activeId === null && focusNeighbour(1, 0),
+    k: () => activeId === null && focusNeighbour(-1, 0),
+    h: () => activeId === null && focusNeighbour(0, -1),
+    l: () => activeId === null && focusNeighbour(0, 1),
     m: () => {
+      if (activeId !== null) return;
       const ref = document.activeElement?.closest<HTMLElement>('[data-card-ref]')?.dataset.cardRef;
       if (ref) setMovingRef(ref);
     },
@@ -277,7 +286,7 @@ export function Board({
         onDragEnd={onDragEnd}
         onDragCancel={clearDrag}
       >
-        <div className="grid grid-cols-[repeat(6,minmax(10rem,1fr))] gap-4 overflow-x-auto">
+        <div className={`${BOARD_GRID_CLASS} overflow-x-auto`}>
           {COLUMNS.map(({ status, name }) => (
             <Column
               key={status}

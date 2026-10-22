@@ -58,6 +58,7 @@ export function Column({
   doneFooter,
 }: ColumnProps) {
   const headingId = useId();
+  const listId = useId();
   const { setNodeRef } = useDroppable({ id: `${COLUMN_DROP_PREFIX}${status}` });
   const limit = status === 'in_progress' && wipLimit ? wipLimit : 0;
   const overLimit = limit > 0 && count > limit;
@@ -103,7 +104,7 @@ export function Column({
       </header>
       {quickAddOpen && <QuickAdd columnName={name} onCreate={onCreate} onClose={onCloseQuickAdd} />}
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2">
+        <div id={listId} className="flex flex-col gap-2">
           {cards.map((card) => (
             <SortableCard key={card.id} card={card} today={today} onOpen={onOpenCard} />
           ))}
@@ -117,6 +118,7 @@ export function Column({
           type="button"
           onClick={doneFooter.onToggle}
           aria-expanded={doneFooter.showAll}
+          aria-controls={listId}
           className="h-8 cursor-pointer self-start border-0 bg-transparent px-0 text-sm text-primary hover:underline"
         >
           {doneFooter.showAll

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { CARD_PRIORITIES } from 'shared';
 import { useLabels } from '../../api/queries';
@@ -12,6 +13,7 @@ import { Select } from '../ui/Select';
  */
 export function BoardFilters() {
   const [params, setParams] = useSearchParams();
+  const textRef = useRef<HTMLInputElement>(null);
   const labels = useLabels();
   const filters = parseFilters(params);
 
@@ -58,6 +60,7 @@ export function BoardFilters() {
       </div>
       <div className="w-44">
         <Input
+          ref={textRef}
           aria-label="Filtrar por texto"
           placeholder="Filtrar por texto…"
           value={params.get('q') ?? ''}
@@ -67,7 +70,11 @@ export function BoardFilters() {
       {hasFilters(filters) && (
         <Button
           variant="secondary"
-          onClick={() => setParams(new URLSearchParams(), { replace: true })}
+          onClick={() => {
+            setParams(new URLSearchParams(), { replace: true });
+            // El botón desaparece al limpiar: el foco pasa al campo de texto en vez de caer al `body`.
+            textRef.current?.focus();
+          }}
         >
           Limpiar
         </Button>

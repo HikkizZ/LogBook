@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { LABEL_COLORS, type CardDto, type CardStatus } from 'shared';
 import { CardTile } from '../components/board/CardTile';
-import { COLUMNS } from '../lib/board';
+import { BOARD_GRID_CLASS, COLUMNS } from '../lib/board';
 import {
   Button,
   Checkbox,
@@ -219,7 +219,7 @@ export function KitPage() {
       </Section>
 
       <Section title="CardTile · 6 estados × urgencias">
-        <div className="grid w-full grid-cols-[repeat(6,minmax(10rem,1fr))] gap-4 overflow-x-auto">
+        <div className={`${BOARD_GRID_CLASS} w-full overflow-x-auto`}>
           {COLUMNS.map(({ status, name }) => (
             <div key={status} className="flex flex-col gap-2">
               <span className="text-xs text-fg-muted">{name}</span>

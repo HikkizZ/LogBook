@@ -200,4 +200,14 @@ describe('soltar una tarjeta (4.3, RF-11, RF-14)', () => {
     expect(announcements?.onDragOver(event('id-2'))).toBe('T-1 sobre Revisión, posición 1.');
     expect(announcements?.onDragEnd(event('col:done'))).toBe('T-1 soltada en la columna Hecho.');
   });
+
+  it('M-9 §6.1: al tomar la tarjeta no se anuncia "sobre" ella misma', async () => {
+    renderBoard([makeCard('todo', { number: 1, title: 'A' })]);
+    await screen.findByText('A');
+    const { announcements } = captured.props.accessibility ?? {};
+
+    const self = { active: { id: 'id-1' }, over: { id: 'id-1' } } as never;
+
+    expect(announcements?.onDragOver(self)).toBeUndefined();
+  });
 });

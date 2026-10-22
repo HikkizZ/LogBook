@@ -51,10 +51,13 @@ function ReasonForm({
 
   return (
     <>
+      <p id="block-reason-hint" className="m-0 mb-2 text-xs text-fg-muted">
+        Mínimo {BLOCK_REASON_MIN} caracteres; queda en la bitácora como entrada de bloqueo.
+      </p>
       <Textarea
         aria-label="Motivo del bloqueo"
         aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? 'block-reason-error' : undefined}
+        aria-describedby={invalid ? 'block-reason-error' : 'block-reason-hint'}
         data-autofocus
         value={reason}
         onChange={(e) => setReason(e.target.value)}

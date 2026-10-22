@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { CardDto } from 'shared';
 import { server } from '../test/server';
-import { daysAgo, makeCard, renderBoard, url } from '../test/board-fixtures';
+import { daysAgo, makeCard, makeProject, renderBoard, url } from '../test/board-fixtures';
 
 beforeEach(() => localStorage.clear());
 
@@ -409,17 +409,16 @@ describe('tarjeta rápida (4.4, RF-26)', () => {
     const user = userEvent.setup();
     renderBoard([makeCard('todo')]);
     await boardReady();
-    server.use(
-      http.post(url('/cards'), () =>
-        HttpResponse.json({ error: { code: 'INTERNAL', message: 'Caído' } }, { status: 500 }),
-      ),
-    );
+    // M-5: "Reintentar" solo se ofrece ante un fallo de red.
+    server.use(http.post(url('/cards'), () => HttpResponse.error()));
     await user.click(screen.getByRole('button', { name: 'Nueva tarjeta en Backlog' }));
 
     await user.type(screen.getByRole('textbox', { name: /Título de la nueva/ }), 'Fallida{Enter}');
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('No se pudo crear "Fallida": Caído');
+    expect(alert).toHaveTextContent(
+      'No se pudo crear "Fallida": No se pudo conectar con el servidor',
+    );
     expect(within(alert).getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
 });
@@ -631,5 +630,163 @@ describe('anuncios aria-live (4.3, §6.1)', () => {
       );
     });
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/p\/siga$/);
+  });
+});
+
+describe('correcciones de la revisión de la fase 4', () => {
+  it('I-3 §6.2: con una tarjeta tomada, j/k/h/l y m no actúan; Esc la cancela', async () => {
+    const user = userEvent.setup();
+    renderBoard([
+      makeCard('todo', { number: 1, title: 'A1' }),
+      makeCard('review', { number: 2, title: 'R1' }),
+    ]);
+    await screen.findByText('A1');
+    focusCard('T-1');
+
+    await user.keyboard(' ');
+    await waitFor(() => expect(document.querySelector('[aria-live]')).toHaveTextContent(/T-1/));
+    await user.keyboard('l');
+    expect(cardEl('T-1')).toHaveFocus();
+    await user.keyboard('m');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(document.querySelector('[aria-live]')).toHaveTextContent(
+        'Movimiento cancelado. T-1 sigue en su sitio.',
+      );
+    });
+  });
+
+  it('M-2: si la API repite el nextCursor la carga termina en error y no se cuelga', async () => {
+    renderBoard([makeCard('todo')]);
+    server.use(
+      http.get(url('/cards'), () =>
+        HttpResponse.json({ items: [makeCard('todo')], nextCursor: 'x' }),
+      ),
+    );
+
+    expect(await screen.findByText('No se pudieron cargar las tarjetas.')).toBeInTheDocument();
+  });
+
+  it('M-4: una tarjeta creada no desaparece si un refetch iniciado antes responde sin ella', async () => {
+    const user = userEvent.setup();
+    const api = renderBoard([makeCard('todo', { number: 1, title: 'A1' })]);
+    await boardReady();
+    await screen.findByText('A1');
+
+    // El refetch que dispara el `move` se queda en vuelo con una foto sin la tarjeta nueva.
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get(url('/cards'), async () => {
+        const snapshot = [...api.cards];
+        await gate;
+        return HttpResponse.json({ items: snapshot, nextCursor: null });
+      }),
+    );
+    focusCard('T-1');
+    await user.keyboard('m');
+    const menu = await screen.findByRole('dialog', { name: 'Mover T-1 a…' });
+    await user.click(within(menu).getByRole('button', { name: 'Backlog' }));
+    await waitFor(() => expect(api.moves).toHaveLength(1));
+
+    await user.click(screen.getByRole('button', { name: 'Nueva tarjeta en Revisión' }));
+    await user.type(screen.getByRole('textbox', { name: /Título de la nueva/ }), 'Nueva{Enter}');
+    await waitFor(() => expect(api.created).toHaveLength(1));
+    expect(await screen.findByText('Nueva')).toBeInTheDocument();
+    release();
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.getByText('Nueva')).toBeInTheDocument();
+  });
+
+  it('M-5: un 409 al crear no ofrece "Reintentar"; un fallo de red sí', async () => {
+    const user = userEvent.setup();
+    renderBoard([makeCard('todo')]);
+    await boardReady();
+    server.use(
+      http.post(url('/cards'), () =>
+        HttpResponse.json({ error: { code: 'CONFLICT', message: 'Archivado' } }, { status: 409 }),
+      ),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Nueva tarjeta en Backlog' }));
+    await user.type(screen.getByRole('textbox', { name: /Título de la nueva/ }), 'Uno{Enter}');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No se pudo crear "Uno"');
+    expect(within(alert).queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+
+    server.use(http.post(url('/cards'), () => HttpResponse.error()));
+    await user.type(screen.getByRole('textbox', { name: /Título de la nueva/ }), 'Dos{Enter}');
+    expect(
+      await screen.findByRole('button', { name: 'Reintentar' }, { timeout: 3000 }),
+    ).toBeInTheDocument();
+  });
+
+  it('M-8: Limpiar devuelve el foco al campo de texto', async () => {
+    const user = userEvent.setup();
+    renderBoard([makeCard('todo')], '/p/siga?label=bug');
+    await boardReady();
+
+    await user.click(await screen.findByRole('button', { name: 'Limpiar' }));
+
+    expect(screen.getByRole('textbox', { name: 'Filtrar por texto' })).toHaveFocus();
+  });
+
+  it('M-10: el textarea del motivo enlaza una pista con el mínimo y, tras el error, el mensaje', async () => {
+    const user = userEvent.setup();
+    renderBoard([makeCard('todo', { number: 1, title: 'A1' })]);
+    await screen.findByText('A1');
+    focusCard('T-1');
+    await user.keyboard('m');
+    const menu = await screen.findByRole('dialog', { name: 'Mover T-1 a…' });
+    await user.click(within(menu).getByRole('button', { name: 'Bloqueado' }));
+
+    const textarea = await screen.findByRole('textbox', { name: 'Motivo del bloqueo' });
+    const hintId = textarea.getAttribute('aria-describedby');
+    expect(hintId).toBeTruthy();
+    expect(document.getElementById(hintId ?? '')).toHaveTextContent(/Mínimo 3 caracteres/);
+
+    await user.click(screen.getByRole('button', { name: 'Bloquear' }));
+    const errorId = textarea.getAttribute('aria-describedby');
+    expect(document.getElementById(errorId ?? '')).toHaveTextContent(/Escribe al menos 3/);
+  });
+
+  it('M-11: el contador de En curso no se pinta hasta que llega /projects (sin parpadeo 4 -> 4/3)', async () => {
+    renderBoard(Array.from({ length: 4 }, (_, i) => makeCard('in_progress', { number: 10 + i })));
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get(url('/projects'), async () => {
+        await gate;
+        return HttpResponse.json([makeProject('siga', 3)]);
+      }),
+    );
+
+    await screen.findByRole('status', { name: 'Cargando tarjetas' });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.queryByRole('region', { name: 'En curso' })).not.toBeInTheDocument();
+    release();
+
+    const col = await column('En curso');
+    expect(within(col).getByText('4/3')).toBeInTheDocument();
+  });
+
+  it('M-12: "Ver todo" apunta con aria-controls a la lista que expande', async () => {
+    renderBoard([
+      makeCard('done', { number: 1, title: 'Reciente', completedAt: daysAgo(2) }),
+      makeCard('done', { number: 2, title: 'Antigua', completedAt: daysAgo(40) }),
+    ]);
+    const done = await column('Hecho');
+
+    const button = within(done).getByRole('button', { name: 'Ver todo (2)' });
+
+    const id = button.getAttribute('aria-controls');
+    expect(id).toBeTruthy();
+    expect(document.getElementById(id ?? '')).toContainElement(within(done).getByText('Reciente'));
   });
 });

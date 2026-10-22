@@ -57,6 +57,10 @@ async function fetchProjectCards(slug: string): Promise<CardDto[]> {
     if (cursor) params.set('cursor', cursor);
     const page: CardListDto = await api.get<CardListDto>(`/cards?${params.toString()}`);
     items.push(...page.items);
+    // Un cursor repetido volvería a pedir la misma página para siempre.
+    if (page.nextCursor !== null && page.nextCursor === cursor) {
+      throw new Error('La API repitió el cursor de paginación');
+    }
     cursor = page.nextCursor;
   } while (cursor);
   return items;
@@ -124,7 +128,9 @@ export function useCreateCard(slug: string) {
   return useMutation({
     mutationFn: ({ title, status }: { title: string; status: CardStatus }) =>
       api.post<CardDto>('/cards', { project: slug, title, status }),
-    onSuccess: (card) => {
+    onSuccess: async (card) => {
+      // Un refetch en vuelo (p. ej. el de un `move`) traería una foto sin esta tarjeta y la pisaría.
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards(slug) });
       queryClient.setQueryData<CardDto[]>(queryKeys.cards(slug), (old) =>
         old ? appendCard(old, card) : old,
       );
