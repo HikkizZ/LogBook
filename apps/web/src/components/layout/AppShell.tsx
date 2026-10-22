@@ -38,6 +38,7 @@ export function AppShell() {
   const collapsed = userCollapsed || narrow;
 
   const toggleSidebar = () => {
+    if (narrow) return;
     const next = !userCollapsed;
     setUserCollapsed(next);
     try {
@@ -58,7 +59,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+      <Sidebar collapsed={collapsed} narrow={narrow} onToggle={toggleSidebar} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
         <main className="flex-1 overflow-auto bg-bg p-6">

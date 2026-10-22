@@ -33,6 +33,8 @@ export function useHotkeys(hotkeys: Hotkeys): void {
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
       const table = latest.current;
       const ctrl = e.ctrlKey || e.metaKey;
+      // Bloq Mayús entrega `N` sin Shift: las letras se comparan en minúscula salvo con Shift real.
+      const key = !e.shiftKey && e.key.length === 1 ? e.key.toLowerCase() : e.key;
       const typing = isEditable(e.target);
       const modal = document.querySelector('[aria-modal="true"]') !== null;
 
@@ -48,12 +50,12 @@ export function useHotkeys(hotkeys: Hotkeys): void {
 
       const pending = first;
       reset();
-      const handler = pending ? table[`${pending} ${e.key}`] : table[e.key];
+      const handler = pending ? table[`${pending} ${key}`] : table[key];
       if (handler) {
         e.preventDefault();
         handler(e);
-      } else if (!pending && Object.keys(table).some((k) => k.startsWith(`${e.key} `))) {
-        first = e.key;
+      } else if (!pending && Object.keys(table).some((k) => k.startsWith(`${key} `))) {
+        first = key;
         timer = setTimeout(reset, SEQUENCE_TIMEOUT_MS);
       }
     };

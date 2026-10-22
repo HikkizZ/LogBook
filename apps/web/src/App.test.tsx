@@ -176,4 +176,69 @@ describe('AppShell (3.4, 3.5)', () => {
     await user.keyboard('?');
     expect(screen.getByRole('dialog', { name: 'Atajos de teclado' })).toBeVisible();
   });
+
+  it('M-1 §6.1: el contador "en curso" forma parte del nombre del enlace, sin aria-label en un span', async () => {
+    signedIn();
+    renderApp('/today');
+
+    const nav = await screen.findByRole('navigation', { name: 'Principal' });
+
+    expect(await within(nav).findByRole('link', { name: 'Personal, 2 en curso' })).toBeVisible();
+    expect(nav.querySelector('span[aria-label]')).toBeNull();
+    expect(nav.querySelector('[title]')).toBeNull();
+  });
+
+  it('M-2 §6.1: colapsada, el enlace no se anuncia dos veces (nombre y descripción distintos)', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('logbook.sidebarCollapsed', '1');
+    signedIn();
+    renderApp('/today');
+    const nav = await screen.findByRole('navigation', { name: 'Principal' });
+    const link = await within(nav).findByRole('link', { name: 'Mi día' });
+
+    await user.hover(link);
+
+    expect(link).not.toHaveAccessibleDescription('Mi día');
+  });
+
+  it('M-10 §6.1: la sidebar no crea regiones (landmarks) de más', async () => {
+    signedIn();
+    renderApp('/today');
+    const nav = await screen.findByRole('navigation', { name: 'Principal' });
+
+    expect(within(nav).queryAllByRole('region')).toHaveLength(0);
+    expect(within(nav).getByRole('group', { name: 'Vistas' })).toBeInTheDocument();
+  });
+
+  describe('bajo 1024 px (M-3 §3)', () => {
+    const original = window.matchMedia;
+    beforeEach(() => {
+      window.matchMedia = ((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      })) as unknown as typeof window.matchMedia;
+    });
+    afterEach(() => {
+      window.matchMedia = original;
+    });
+
+    it('el botón de la sidebar queda aria-disabled y [ no cambia la preferencia', async () => {
+      const user = userEvent.setup();
+      signedIn();
+      renderApp('/today');
+      const toggle = await screen.findByRole('button', { name: 'Expandir barra lateral' });
+
+      expect(toggle).toHaveAttribute('aria-disabled', 'true');
+      await user.click(toggle);
+      await user.keyboard('[[');
+
+      expect(localStorage.getItem('logbook.sidebarCollapsed')).toBeNull();
+      await user.hover(toggle);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(
+        'La barra lateral se colapsa bajo 1024 px',
+      );
+    });
+  });
 });

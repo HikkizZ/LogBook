@@ -38,12 +38,19 @@ export function Dialog({
     (dialog.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? dialog).focus();
 
     // Red de seguridad: si el foco escapa (clic fuera, script), vuelve adentro.
+    // Los avisos (toasts) se montan encima del diálogo y deben poder enfocarse.
     const onFocusIn = (e: FocusEvent) => {
-      if (!dialog.contains(e.target as Node)) (focusables()[0] ?? dialog).focus();
+      const target = e.target as Element;
+      if (dialog.contains(target) || target.closest('[role="region"][aria-label="Avisos"]')) return;
+      (focusables()[0] ?? dialog).focus();
     };
     document.addEventListener('focusin', onFocusIn);
+    // Sin scroll del fondo mientras el diálogo está abierto (CSSOM: compatible con la CSP).
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('focusin', onFocusIn);
+      document.body.style.overflow = previousOverflow;
       previous?.focus();
     };
   }, [open]);
@@ -88,10 +95,7 @@ export function Dialog({
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={cn(
-          'w-full rounded-md bg-surface p-6 text-fg shadow-lift focus:outline-none',
-          widthClass,
-        )}
+        className={cn('w-full rounded-md bg-surface p-6 text-fg shadow-lift', widthClass)}
       >
         <h2 id={titleId} className="mb-4 text-md">
           {title}

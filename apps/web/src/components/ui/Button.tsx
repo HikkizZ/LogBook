@@ -12,11 +12,16 @@ const VARIANT: Record<ButtonVariant, string> = {
     'border border-danger bg-surface text-danger enabled:hover:bg-danger-soft focus-visible:outline-danger',
 };
 
-interface ButtonProps extends ComponentProps<'button'> {
+type ButtonProps = ComponentProps<'button'> & {
   variant?: ButtonVariant;
-  /** Botón cuadrado de 32 px solo con icono: exige `aria-label` (§6.1). */
-  iconOnly?: boolean;
-}
+} & (
+    | {
+        /** Botón cuadrado de 32 px solo con icono: exige `aria-label` (§6.1). */
+        iconOnly: true;
+        'aria-label': string;
+      }
+    | { iconOnly?: false }
+  );
 
 export function Button({
   variant = 'primary',

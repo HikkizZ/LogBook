@@ -4,6 +4,8 @@ interface TooltipProps {
   label: string;
   /** Lado donde aparece. `right` para los iconos de la sidebar colapsada. */
   side?: 'top' | 'right';
+  /** `false` si el elemento ya tiene este mismo texto como nombre accesible (evita el doble anuncio). */
+  describe?: boolean;
   /** Recibe `aria-describedby` y los manejadores; hay que esparcirlos sobre el elemento que se anota. */
   children: (triggerProps: HTMLAttributes<HTMLElement>) => ReactNode;
 }
@@ -11,7 +13,7 @@ interface TooltipProps {
 const DELAY_MS = 300;
 
 /** §5: aparece al pasar el ratón (300 ms de retardo) y con el foco del teclado; Esc la cierra. */
-export function Tooltip({ label, side = 'top', children }: TooltipProps) {
+export function Tooltip({ label, side = 'top', describe = true, children }: TooltipProps) {
   const id = useId();
   const [pending, setPending] = useState<{ el: HTMLElement; delay: number } | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -34,10 +36,22 @@ export function Tooltip({ label, side = 'top', children }: TooltipProps) {
     setPos(null);
   };
 
+  // Posición `fixed` calculada al abrir: cualquier scroll (también el de un contenedor) la cierra.
+  const visible = pending !== null;
+  useEffect(() => {
+    if (!visible) return;
+    const onScroll = () => {
+      setPending(null);
+      setPos(null);
+    };
+    window.addEventListener('scroll', onScroll, true);
+    return () => window.removeEventListener('scroll', onScroll, true);
+  }, [visible]);
+
   return (
     <>
       {children({
-        'aria-describedby': id,
+        'aria-describedby': describe ? id : undefined,
         onMouseEnter: (e) => setPending({ el: e.currentTarget, delay: DELAY_MS }),
         onMouseLeave: hide,
         onFocus: (e) => setPending({ el: e.currentTarget, delay: 0 }),

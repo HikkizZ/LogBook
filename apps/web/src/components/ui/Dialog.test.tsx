@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
+import { ToastProvider, useToast } from './Toast';
 
 function Harness() {
   const [open, setOpen] = useState(false);
@@ -62,5 +63,53 @@ describe('Dialog', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
+  });
+
+  it('M-4 §6.1: el contenedor del diálogo no quita su propio anillo de foco', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'Abrir' }));
+
+    expect(screen.getByRole('dialog').className).not.toMatch(/outline-none/);
+  });
+
+  it('M-5: mientras está abierto el body no se desplaza y al cerrar se restaura', async () => {
+    const user = userEvent.setup();
+    document.body.style.overflow = 'auto';
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'Abrir' }));
+    expect(document.body.style.overflow).toBe('hidden');
+
+    await user.keyboard('{Escape}');
+
+    expect(document.body.style.overflow).toBe('auto');
+    document.body.style.overflow = '';
+  });
+
+  it('M-5: un toast sobre el diálogo puede recibir el foco y cerrarse con el teclado', async () => {
+    const user = userEvent.setup();
+    function WithToast() {
+      const toast = useToast();
+      return (
+        <Dialog open onClose={() => undefined} title="Diálogo">
+          <Button onClick={() => toast.show({ tone: 'danger', message: 'Sin conexión' })}>
+            Avisar
+          </Button>
+        </Dialog>
+      );
+    }
+    render(
+      <ToastProvider>
+        <WithToast />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Avisar' }));
+    const close = screen.getByRole('button', { name: 'Cerrar aviso' });
+
+    close.focus();
+    expect(close).toHaveFocus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByText('Sin conexión')).not.toBeInTheDocument();
   });
 });

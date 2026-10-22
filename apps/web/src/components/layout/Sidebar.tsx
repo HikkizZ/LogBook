@@ -44,7 +44,7 @@ function SidebarItem({
     </NavLink>
   );
   return collapsed ? (
-    <Tooltip label={label} side="right">
+    <Tooltip label={label} side="right" describe={false}>
       {link}
     </Tooltip>
   ) : (
@@ -83,13 +83,12 @@ function ProjectList({ collapsed }: { collapsed: boolean }) {
             }
             trailing={
               p.cardCounts.in_progress > 0 && (
-                <span
-                  className="text-xs text-sidebar-fg-muted"
-                  title="Tarjetas en curso"
-                  aria-label={`${p.cardCounts.in_progress} en curso`}
-                >
-                  {p.cardCounts.in_progress}
-                </span>
+                <>
+                  <span aria-hidden="true" className="text-xs text-sidebar-fg-muted">
+                    {p.cardCounts.in_progress}
+                  </span>
+                  <span className="sr-only">, {p.cardCounts.in_progress} en curso</span>
+                </>
               )
             }
           />
@@ -101,13 +100,22 @@ function ProjectList({ collapsed }: { collapsed: boolean }) {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="flex flex-col gap-1">
+    <div role="group" aria-label={title} className="flex flex-col gap-1">
       {children}
-    </section>
+    </div>
   );
 }
 
-export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function Sidebar({
+  collapsed,
+  narrow,
+  onToggle,
+}: {
+  collapsed: boolean;
+  /** Bajo 1024 px la sidebar está colapsada a la fuerza y el botón no hace nada. */
+  narrow: boolean;
+  onToggle: () => void;
+}) {
   return (
     <aside
       id="sidebar"
@@ -150,7 +158,13 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         <SidebarItem to="/tokens" label="Tokens" icon={<KeyIcon />} collapsed={collapsed} />
         <SidebarItem to="/settings" label="Ajustes" icon={<SettingsIcon />} collapsed={collapsed} />
         <Tooltip
-          label={collapsed ? 'Expandir barra lateral ([)' : 'Colapsar barra lateral ([)'}
+          label={
+            narrow
+              ? 'La barra lateral se colapsa bajo 1024 px'
+              : collapsed
+                ? 'Expandir barra lateral ([)'
+                : 'Colapsar barra lateral ([)'
+          }
           side="right"
         >
           {(props) => (
@@ -159,10 +173,12 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               aria-label={collapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
               aria-expanded={!collapsed}
               aria-controls="sidebar"
-              onClick={onToggle}
+              aria-disabled={narrow || undefined}
+              onClick={narrow ? undefined : onToggle}
               className={cn(
                 'flex h-8 cursor-pointer items-center gap-2 rounded-sm border-l-3 border-transparent bg-transparent px-3 text-base text-sidebar-fg-muted transition-colors duration-120 ease-out hover:bg-sidebar-hover hover:text-sidebar-fg',
                 collapsed && 'justify-center px-0',
+                narrow && 'cursor-not-allowed opacity-50',
               )}
               {...props}
             >

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useHotkeys } from './useHotkeys';
 
@@ -90,5 +90,25 @@ describe('useHotkeys', () => {
     modal.remove();
 
     expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it('M-8 §6.2: con Bloq Mayús (key en mayúscula, sin Shift) el atajo sigue disparando', () => {
+    const { onNew } = setup();
+
+    fireEvent.keyDown(document, { key: 'N' });
+    expect(onNew).toHaveBeenCalledOnce();
+
+    // Con Shift real no es el atajo `n`.
+    fireEvent.keyDown(document, { key: 'N', shiftKey: true });
+    expect(onNew).toHaveBeenCalledOnce();
+  });
+
+  it('M-8 §6.2: las secuencias también ignoran Bloq Mayús', () => {
+    const { onDay } = setup();
+
+    fireEvent.keyDown(document, { key: 'G' });
+    fireEvent.keyDown(document, { key: 'D' });
+
+    expect(onDay).toHaveBeenCalledOnce();
   });
 });
