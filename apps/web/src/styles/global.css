@@ -1,0 +1,150 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+/*
+ * Tokens de docs/spec/02_diseno.md §2. Único lugar donde pueden aparecer colores y tamaños sueltos.
+ * Se vacían los espacios de nombres por defecto de Tailwind para que solo existan los tokens del diseño.
+ * Modo oscuro: no en v1 (§1.5); bastará mover estos valores a :root y usar `@theme inline`.
+ */
+@theme {
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+
+  /* §2.1 Color (modo claro) */
+  --color-sidebar: #03363d;
+  --color-sidebar-hover: #17494d;
+  --color-sidebar-fg: #ffffff;
+  --color-sidebar-fg-muted: #b8c4c8;
+  --color-bg: #f8f9f9;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f2f4f5;
+  --color-border: #d8dcde;
+  --color-border-strong: #87929d;
+  --color-fg: #2f3941;
+  --color-fg-muted: #68737d;
+  --color-fg-placeholder: #68737d;
+  --color-primary: #1f73b7;
+  --color-primary-hover: #185f96;
+  --color-neutral: #5e6a74;
+  --color-primary-soft: #edf7ff;
+  --color-success: #038153;
+  --color-success-soft: #edf8f4;
+  --color-warning: #ad5918;
+  --color-warning-soft: #fff8ed;
+  --color-danger: #cc3340;
+  --color-danger-soft: #fdf2f3;
+  --color-focus: #1f73b7;
+  /* §5 Dialog: "fondo oscurecido 40 %" */
+  --color-scrim: rgb(0 0 0 / 40%);
+
+  /* §2.3 Colores de proyecto (acento / suave). Las etiquetas usan las mismas claves (§2.4). */
+  --color-project-violeta: #6b5ca5;
+  --color-project-violeta-soft: #eeeaf8;
+  --color-project-magenta: #a63a70;
+  --color-project-magenta-soft: #fbeaf2;
+  --color-project-cafe: #8c5a3c;
+  --color-project-cafe-soft: #f6ede7;
+  --color-project-pizarra: #5b6b7f;
+  --color-project-pizarra-soft: #edf0f3;
+  --color-project-turquesa: #1a6b7b;
+  --color-project-turquesa-soft: #e6f3f6;
+  --color-project-oliva: #5c6b1f;
+  --color-project-oliva-soft: #f1f4e6;
+
+  /* §2.5 Tipografía */
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-xs--font-weight: 500;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-sm--font-weight: 400;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-base--font-weight: 400;
+  --text-md: 16px;
+  --text-md--line-height: 24px;
+  --text-md--font-weight: 600;
+  --text-lg: 20px;
+  --text-lg--line-height: 28px;
+  --text-lg--font-weight: 600;
+
+  /* §2.6 Espaciado (escala 4, 8, 12, 16, 24, 32), radios y sombras */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  /* Anchos fijos de §3 y §4.3 */
+  --container-dialog: 420px;
+  --container-login: 360px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 6%);
+  --shadow-lift: 0 4px 12px rgb(0 0 0 / 12%);
+
+  /* Skeleton (§5 Carga): animación suave */
+  --animate-skeleton: skeleton 1.6s ease-in-out infinite;
+  @keyframes skeleton {
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    color: var(--color-fg);
+    background-color: var(--color-bg);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    min-height: 100vh;
+  }
+
+  /* §6.1: foco visible siempre, anillo de 2 px con offset de 2 px; en la sidebar, anillo blanco. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .on-sidebar :focus-visible {
+    outline-color: var(--color-sidebar-fg);
+  }
+
+  /* §2.1: placeholders con el mismo color que el secundario, en itálica. */
+  ::placeholder {
+    color: var(--color-fg-placeholder);
+    font-style: italic;
+    opacity: 1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+  }
+}
+
+/* §2.6: transiciones y animaciones desactivadas bajo prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
