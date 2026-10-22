@@ -102,7 +102,7 @@ Nada por debajo de 12 px. Pesos: 400, 500, 600 (no 700).
 - Escala de espaciado: `4, 8, 12, 16, 24, 32` px. No hay tokens `--space-*`: el espaciado sale de la escala `--spacing` de Tailwind (0,25 rem) con los multiplicadores `1, 2, 3, 4, 6, 8` (`gap-4`, `p-6`, …). Los `--space-1..6` que declaré en la fase 3 no los usaba nada y los eliminé (decidido 2026-10-22). La escala no se impone por CSS; se revisa a ojo (nada de `mb-5`).
 - Radios: `--radius-sm: 4px` (chips, inputs, botones), `--radius-md: 6px` (tarjetas, paneles, diálogos). Nada más redondo.
 - Sombras: `--shadow-card: 0 1px 2px rgb(0 0 0 / 6%)` (tarjeta en reposo), `--shadow-lift: 0 4px 12px rgb(0 0 0 / 12%)` (tarjeta arrastrándose, diálogos). Sin más niveles.
-- Anchos fijos: `--container-dialog: 420px` (diálogo de §4.3), `--container-login: 360px` (formulario de login de §4.8).
+- Anchos fijos: `--container-dialog: 420px` (diálogo de §4.3), `--container-dialog-wide: 560px` (diálogo de atajos de §6.2), `--container-login: 360px` (formulario de login de §4.8).
 - Scrim: `--color-scrim: rgb(0 0 0 / 40%)`, el fondo oscurecido del `Dialog` (§5).
 - Skeleton: `--animate-skeleton: skeleton 1.6s ease-in-out infinite` (keyframe `skeleton`: opacidad 0,5 al 50 %), la "animación suave" de carga de §5.
 - Transiciones: 120 ms `ease-out` para hover/foco; 180 ms para abrir el panel de detalle. Desactivadas bajo `prefers-reduced-motion`.
@@ -123,6 +123,7 @@ Los cuatro tokens de anchos, scrim y skeleton aparecieron en la fase 3 y los doc
   --radius-md: 6px;
   --color-scrim: rgb(0 0 0 / 40%);
   --container-dialog: 420px;
+  --container-dialog-wide: 560px;
   --container-login: 360px;
   --animate-skeleton: skeleton 1.6s ease-in-out infinite;
 }
