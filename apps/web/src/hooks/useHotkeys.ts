@@ -29,10 +29,12 @@ export function useHotkeys(hotkeys: Hotkeys): void {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.isComposing || e.altKey) return;
+      // AltGr (teclados latinoamericano y español: `[` es AltGr+') llega como ctrl+alt a la vez.
+      const altGr = e.ctrlKey && e.altKey;
+      if (e.defaultPrevented || e.isComposing || (e.altKey && !altGr)) return;
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
       const table = latest.current;
-      const ctrl = e.ctrlKey || e.metaKey;
+      const ctrl = (e.ctrlKey || e.metaKey) && !altGr;
       // Bloq Mayús entrega `N` sin Shift: las letras se comparan en minúscula salvo con Shift real.
       const key = !e.shiftKey && e.key.length === 1 ? e.key.toLowerCase() : e.key;
       const typing = isEditable(e.target);

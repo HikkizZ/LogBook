@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
@@ -158,6 +158,29 @@ describe('AppShell (3.4, 3.5)', () => {
       'false',
     );
     expect(localStorage.getItem('logbook.sidebarCollapsed')).toBe('1');
+  });
+
+  it('I-1 §6.2: [ con AltGr (ctrl+alt en teclado latinoamericano) colapsa; Ctrl+[ y Alt+[ solos no', async () => {
+    signedIn();
+    renderApp('/today');
+    await screen.findByRole('button', { name: 'Colapsar barra lateral' });
+
+    fireEvent.keyDown(document, { key: '[', ctrlKey: true });
+    fireEvent.keyDown(document, { key: '[', altKey: true });
+    expect(screen.getByRole('button', { name: 'Colapsar barra lateral' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: '[', ctrlKey: true, altKey: true });
+    expect(screen.getByRole('button', { name: 'Expandir barra lateral' })).toBeInTheDocument();
+  });
+
+  it('I-1 §6.2: ? (Shift+- latinoamericano) y / (Shift+7) llegan sin AltGr y ? abre la tabla', async () => {
+    signedIn();
+    renderApp('/today');
+    await screen.findByRole('heading', { level: 1, name: 'Mi día' });
+
+    fireEvent.keyDown(document, { key: '?', shiftKey: true });
+
+    expect(screen.getByRole('dialog', { name: 'Atajos de teclado' })).toBeVisible();
   });
 
   it('g d / g w / g t navegan y ? abre la tabla de atajos', async () => {

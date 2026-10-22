@@ -14,7 +14,7 @@ import {
 } from '../components/ui';
 import { ClockIcon } from '../components/ui/icons';
 
-// TODO(diseño): §5 pide borrar /_kit antes de publicar.
+// Solo en desarrollo: App.tsx monta /_kit tras import.meta.env.DEV, así que no entra al bundle de producción.
 
 const SWATCHES: { name: string; className: string }[] = [
   { name: 'sidebar', className: 'bg-sidebar' },

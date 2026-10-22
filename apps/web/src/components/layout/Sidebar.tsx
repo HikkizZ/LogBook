@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { useProjects } from '../../api/queries';
 import { cn } from '../../lib/cn';
-import { projectDotClass } from '../../lib/colors';
+import { projectDotSoftClass } from '../../lib/colors';
 import { Skeleton } from '../ui/Skeleton';
 import { Tooltip } from '../ui/Tooltip';
 import {
@@ -78,7 +78,7 @@ function ProjectList({ collapsed }: { collapsed: boolean }) {
             icon={
               <span
                 aria-hidden="true"
-                className={cn('size-2 shrink-0 rounded-full', projectDotClass(p.color))}
+                className={cn('size-2 shrink-0 rounded-full', projectDotSoftClass(p.color))}
               />
             }
             trailing={

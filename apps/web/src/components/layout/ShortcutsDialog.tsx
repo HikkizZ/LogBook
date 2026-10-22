@@ -4,7 +4,7 @@ import { Dialog } from '../ui/Dialog';
 
 export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title="Atajos de teclado" widthClass="max-w-lg">
+    <Dialog open={open} onClose={onClose} title="Atajos de teclado" widthClass="max-w-dialog-wide">
       <p className="mb-3 text-fg-muted">
         Los atajos de una letra no actúan mientras escribes en un campo.
       </p>

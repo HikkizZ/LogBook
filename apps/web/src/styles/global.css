@@ -72,15 +72,10 @@
   --text-lg--line-height: 28px;
   --text-lg--font-weight: 600;
 
-  /* §2.6 Espaciado (escala 4, 8, 12, 16, 24, 32), radios y sombras */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
+  /* §2.6 Espaciado: la escala es `--spacing` de Tailwind con los multiplicadores 1, 2, 3, 4, 6, 8 (4…32 px). Radios y sombras */
   /* Anchos fijos de §3 y §4.3 */
   --container-dialog: 420px;
+  --container-dialog-wide: 560px;
   --container-login: 360px;
   --radius-sm: 4px;
   --radius-md: 6px;

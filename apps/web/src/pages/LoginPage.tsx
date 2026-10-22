@@ -51,7 +51,7 @@ export function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-bg p-4">
       <div className="w-full max-w-login rounded-md border border-border bg-surface p-6 shadow-card">
-        <h1 className="mb-5 text-md">Logbook</h1>
+        <h1 className="mb-6 text-md">Logbook</h1>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor="password">Contraseña</label>

@@ -51,7 +51,8 @@ export function App({ queryClient }: { queryClient?: QueryClient }) {
                 path="settings"
                 element={<PlaceholderPage note="Ajustes llega en la fase 5." />}
               />
-              <Route path="_kit" element={<KitPage />} />
+              {/* Solo en desarrollo (D-4): Vite sustituye DEV por false y saca KitPage del bundle. */}
+              {import.meta.env.DEV && <Route path="_kit" element={<KitPage />} />}
               <Route path="*" element={<PlaceholderPage note="Esta página no existe." />} />
             </Route>
           </Route>

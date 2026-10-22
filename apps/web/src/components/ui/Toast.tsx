@@ -17,7 +17,7 @@ export type ToastTone = 'success' | 'danger';
 export interface ToastOptions {
   tone: ToastTone;
   message: string;
-  /** Acción opcional, p. ej. "Reintentar" tras un error de red (§5). */
+  /** Acción opcional, p. ej. "Reintentar" tras un error de red (§5). Un toast con acción no se cierra solo. */
   action?: { label: string; onClick: () => void };
 }
 
@@ -99,7 +99,7 @@ function ToastEntry({ item, onDismiss }: { item: ToastItem; onDismiss: (id: numb
   return (
     <>
       <Toast {...item} onClose={close} />
-      <AutoDismiss onClose={close} />
+      {!item.action && <AutoDismiss onClose={close} />}
     </>
   );
 }
