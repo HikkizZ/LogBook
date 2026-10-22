@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { LABEL_COLORS } from 'shared';
+import { LABEL_COLORS, type CardDto, type CardStatus } from 'shared';
+import { CardTile } from '../components/board/CardTile';
+import { COLUMNS } from '../lib/board';
 import {
   Button,
   Checkbox,
@@ -53,6 +55,45 @@ const STATES: { label: string; tone: 'neutral' | 'info' | 'danger' | 'success' }
   { label: 'Revisión', tone: 'info' },
   { label: 'Bloqueado', tone: 'danger' },
   { label: 'Hecho', tone: 'success' },
+];
+
+const KIT_TODAY = '2026-10-22';
+
+function kitCard(
+  n: number,
+  status: CardStatus,
+  extra: Partial<CardDto> = {},
+  title = 'Migrar las facturas del sistema antiguo al nuevo esquema de la base de datos',
+): CardDto {
+  return {
+    id: `kit-${n}`,
+    ref: `T-${n}`,
+    number: n,
+    project: 'kit',
+    title,
+    description: '',
+    status,
+    priority: 'medium',
+    labels: [],
+    position: 0,
+    startDate: null,
+    dueDate: null,
+    completedAt: null,
+    archivedAt: null,
+    checklistDone: 0,
+    checklistTotal: 0,
+    createdAt: '2026-10-20T12:00:00.000Z',
+    updatedAt: '2026-10-20T12:00:00.000Z',
+    ...extra,
+  };
+}
+
+/** Seis estados × urgencias de la fecha límite (hoy fijo: 22 oct). */
+const KIT_DUE: { label: string; dueDate: string | null }[] = [
+  { label: 'sin fecha', dueDate: null },
+  { label: 'lejana', dueDate: '2026-11-15' },
+  { label: 'en 2 días', dueDate: '2026-10-24' },
+  { label: 'vencida', dueDate: '2026-10-19' },
 ];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -175,6 +216,58 @@ export function KitPage() {
             {c}
           </Chip>
         ))}
+      </Section>
+
+      <Section title="CardTile · 6 estados × urgencias">
+        <div className="grid w-full grid-cols-[repeat(6,minmax(10rem,1fr))] gap-4 overflow-x-auto">
+          {COLUMNS.map(({ status, name }) => (
+            <div key={status} className="flex flex-col gap-2">
+              <span className="text-xs text-fg-muted">{name}</span>
+              {KIT_DUE.map((d, i) => (
+                <CardTile
+                  key={d.label}
+                  today={KIT_TODAY}
+                  card={kitCard(i + 1, status, {
+                    dueDate: d.dueDate,
+                    labels:
+                      i === 1
+                        ? [
+                            { name: 'feature', color: 'violeta' },
+                            { name: 'bug', color: 'magenta' },
+                            { name: 'docs', color: 'gris' },
+                          ]
+                        : [],
+                    checklistDone: i === 1 ? 2 : 0,
+                    checklistTotal: i === 1 ? 5 : 0,
+                    priority: (['medium', 'low', 'high', 'urgent'] as const)[i] ?? 'medium',
+                  })}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-4">
+          <div className="w-44">
+            <CardTile
+              today={KIT_TODAY}
+              card={kitCard(9, 'todo', {}, 'Arrastrando')}
+              state="overlay"
+            />
+          </div>
+          <div className="w-44">
+            <CardTile
+              today={KIT_TODAY}
+              card={kitCard(10, 'todo', {}, 'Hueco')}
+              state="placeholder"
+            />
+          </div>
+          <div className="w-44">
+            <CardTile
+              today={KIT_TODAY}
+              card={kitCard(11, 'todo', { archivedAt: '2026-10-21T12:00:00.000Z' }, 'Archivada')}
+            />
+          </div>
+        </div>
       </Section>
 
       <Section title="Dialog">

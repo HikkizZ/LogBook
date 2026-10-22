@@ -6,6 +6,7 @@ import { ApiBridge } from './app/ApiBridge';
 import { RequireAuth } from './app/RequireAuth';
 import { AppShell } from './components/layout/AppShell';
 import { ToastProvider } from './components/ui/Toast';
+import { BoardPage } from './pages/BoardPage';
 import { KitPage } from './pages/KitPage';
 import { LoginPage } from './pages/LoginPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
@@ -31,10 +32,7 @@ export function App({ queryClient }: { queryClient?: QueryClient }) {
                 path="timeline"
                 element={<PlaceholderPage note="La línea de tiempo llega en la fase 9." />}
               />
-              <Route
-                path="p/:slug"
-                element={<PlaceholderPage note="El kanban llega en la fase 4." />}
-              />
+              <Route path="p/:slug" element={<BoardPage />} />
               <Route
                 path="p/:slug/:ref"
                 element={<PlaceholderPage note="El detalle de tarjeta llega en la fase 5." />}

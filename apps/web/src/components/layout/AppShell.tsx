@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router';
+import { NewCardProvider, useNewCardAction } from '../../app/NewCardContext';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
@@ -31,6 +32,15 @@ function useNarrowViewport(): boolean {
 }
 
 export function AppShell() {
+  return (
+    <NewCardProvider>
+      <Shell />
+    </NewCardProvider>
+  );
+}
+
+function Shell() {
+  const newCard = useNewCardAction();
   const navigate = useNavigate();
   const [userCollapsed, setUserCollapsed] = useState(readCollapsed);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -48,8 +58,9 @@ export function AppShell() {
     }
   };
 
-  // TODO(fase 4.4 / 6.3): `n` (nueva tarjeta), `/` y Ctrl+K (búsqueda) se enlazan aquí cuando existan.
+  // TODO(fase 6.3): `/` y Ctrl+K (búsqueda) se enlazan aquí cuando exista.
   useHotkeys({
+    n: () => newCard?.(),
     '[': toggleSidebar,
     'g d': () => void navigate('/today'),
     'g w': () => void navigate('/week'),
