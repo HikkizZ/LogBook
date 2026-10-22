@@ -166,12 +166,27 @@ Para modo oscuro después: mover los valores a `:root { ... }` y usar `@theme in
 
 ### 4.1 Kanban (`/p/<slug>`)
 
-- Seis columnas de **ancho igual** (`minmax(220px, 1fr)`), separadas por 16 px, **sin fondo**: solo una cabecera con nombre, contador (`En curso 4/3` en ámbar si supera WIP) y botón `+` para tarjeta rápida.
-- Tarjeta (`CardTile`): superficie blanca, borde `--color-border`, radio `--radius-md`, sombra `--shadow-card`, padding 12 px, barra de estado izquierda de 3 px. Contenido en orden: línea 1 `T-42` en mono `--text-xs` muted + chips de etiqueta a la derecha; línea 2 título `--text-sm` en `--color-fg` (máximo 2 líneas, elipsis); línea 3 (solo si hay algo): fecha límite con icono y color por urgencia, `2/5` del checklist, punto de prioridad (`urgent` rojo, `high` ámbar, `medium` sin punto, `low` gris). Nada más: la descripción no se muestra en el kanban.
+- Seis columnas de **ancho igual** (`minmax(10rem, 1fr)`), separadas por 16 px, **sin fondo**: solo una cabecera con nombre, contador (`En curso 4/3` en ámbar si supera WIP) y botón `+` para tarjeta rápida en todas las columnas **menos Bloqueado** (RF-14 exige motivo también al crear ahí, y una tarjeta rápida que abre un diálogo ya no es rápida; si la quiero bloqueada, la creo en Por hacer y la muevo). Antes decía `minmax(220px, 1fr)` y nunca cupo: a 1440 px el contenido mide 1440 − 240 de sidebar − 48 de padding = 1152 px, y seis columnas de 220 más cinco huecos de 16 suman 1400, contra el principio 1. Con 160 px de mínimo caben con ~178 px cada una (títulos de 13 px a dos líneas y dos chips: justo pero legible); bajo 1024 px hace scroll horizontal como dice §3 (decidido 2026-10-22).
+- El contador de la cabecera cuenta **todas** las tarjetas de la columna, no las que deja ver el filtro: el WIP mide trabajo real y un `1/3` con `?label=bug` mentiría (decidido 2026-10-22).
+- Tarjeta (`CardTile`): superficie blanca, borde `--color-border`, radio `--radius-md`, sombra `--shadow-card`, padding 12 px, barra de estado izquierda de 3 px. Contenido en orden: línea 1 `T-42` en mono `--text-xs` muted + chips de etiqueta a la derecha (máximo **2 chips**; el resto se resume en un chip "+N" con texto para lector, porque en ~178 px no caben más; decidido 2026-10-22); línea 2 título `--text-sm` en `--color-fg` (máximo 2 líneas, elipsis); línea 3 (solo si hay algo): fecha límite con icono y color por urgencia, `2/5` del checklist, punto de prioridad (`urgent` rojo, `high` ámbar, `medium` sin punto, `low` gris). Nada más: la descripción no se muestra en el kanban.
+- Texto de la fecha límite (función `dueInfo` en `lib/dates.ts`; la misma la usan Mi día y la línea de tiempo, no se reescribe; decidido 2026-10-22):
+
+  | Diferencia con hoy | Texto | Color |
+  |---|---|---|
+  | hace ≥ 2 días | "vencida hace N días" | `--color-danger` |
+  | hace 1 día | "vencida ayer" | `--color-danger` |
+  | hoy | "vence hoy" | `--color-warning` |
+  | mañana | "vence mañana" | `--color-warning` |
+  | en 2 o 3 días | "vence en N días" | `--color-warning` |
+  | más de 3 días | fecha corta ("14 oct") | `--color-fg-muted` |
+
+  En Hecho la fecha va siempre en muted con la fecha corta, aunque haya pasado: ya no "vence" (RF-25). Es el "icono + texto" de §6.1 y evita "hace 1 días".
 - **Bloqueado** y **Hecho** van después de Revisión para que el flujo normal (Backlog → Hecho) se lea de izquierda a derecha; Bloqueado interrumpe visualmente, a propósito.
-- Columna Hecho: muestra solo los últimos 14 días y un enlace "Ver todo (23)" al pie.
+- Columna Hecho: muestra solo los últimos `doneDaysVisible` días de Ajustes (14 por defecto) y un botón "Ver todo (23)" al pie; al expandir, "Ver solo los últimos 14 días". N es el total **con el filtro aplicado**, porque el botón habla de lo que voy a ver al pulsarlo (al revés que el contador de la cabecera). Consideré "Ver N más" con las ocultas y me quedo con "Ver todo (N)" (decidido 2026-10-22).
 - Tarjeta rápida: al presionar `+` aparece un input en la parte superior de la columna; `Enter` crea y abre otro; `Esc` cancela.
-- Estado vacío de columna: texto muted "Nada aquí" en `--text-sm`, centrado, 24 px de padding. Estado vacío de proyecto: ilustración no; solo "Crea tu primera tarjeta" con el botón.
+- Columna destino durante el arrastre: **contorno discontinuo de 2 px `--color-border-strong`** sobre toda la columna, **sin relleno**. Descarté el relleno `--color-primary-soft` porque dejaba el contador y "Nada aquí" (`fg-muted`) en 4,45:1 y el hueco en 2,9:1, por debajo de §6.1; el contorno no toca ningún texto y es el mismo lenguaje que el placeholder de la tarjeta en §5 (decidido 2026-10-22). El hueco (placeholder) se queda en la columna de **origen**; no se previsualiza en la de destino en esta fase (es el patrón "mover en `onDragOver`" de dnd-kit, un cambio mediano): posible mejora si tras una semana de uso lo echo de menos (decidido 2026-10-22).
+- Filtros (RF-18) en la barra superior: etiqueta, prioridad y texto; el de texto busca solo en `T-42` + título, no en la descripción (el kanban no la muestra, buscar en ella sorprendería). Con algún filtro activo aparece un botón "Limpiar" que los quita todos de una vez (decidido 2026-10-22).
+- Estado vacío de columna: texto muted "Nada aquí" en `--text-sm`, centrado, 24 px de padding. Estado vacío de proyecto: ilustración no; solo "Crea tu primera tarjeta" con el botón, que abre la tarjeta rápida de Por hacer; una vez abierta, el tablero con sus "Nada aquí" se queda aunque cancele (decidido 2026-10-22).
 
 ### 4.2 Detalle de tarjeta (panel)
 
@@ -236,6 +251,7 @@ Componentes en `apps/web/src/components/ui/`. Cada uno tiene todos los estados d
 | `Chip` (estado, etiqueta, proyecto) | texto acento sobre soft, 20 px alto, radio sm, xs | — | — | — | — |
 | `CardTile` | §4.1 | sombra lift ligera, borde fg-muted | anillo + borde primary | arrastrando: sombra lift, rotación 1°, opacidad 90 %; placeholder: contorno discontinuo border-strong | archivada: opacidad 60 % |
 | `ColumnHeader` | nombre md + contador muted | — | — | WIP superado: contador warning + fondo warning-soft en el contador | — |
+| `Column` | sin fondo, cabecera + lista | — | — | destino del arrastre: contorno discontinuo 2 px border-strong, sin relleno (§4.1, decidido 2026-10-22) | — |
 | `SidebarItem` | sidebar-fg-muted | sidebar-hover, texto blanco | anillo blanco (sobre verde) | sidebar-hover, barra blanca izquierda, texto blanco | — |
 | `Dialog` | surface, radio md, sombra lift, fondo oscurecido 40 % | — | foco atrapado dentro | — | — |
 | `Toast` | surface, borde izq. 3 px (success/danger), 4 s, esquina inferior derecha | — | — | con acción (p. ej. "Reintentar"): no se cierra solo, queda hasta cerrarlo o usar la acción | — |
@@ -252,12 +268,15 @@ Carga: skeletons grises (`surface-hover`) con animación suave; nunca spinners d
 ### 6.1 Reglas
 
 - Contraste: los tokens de §2.1 ya están verificados; **cualquier combinación nueva se verifica antes de usarla** (≥ 4.5:1 texto, ≥ 3:1 contornos e iconos informativos).
-- El color **nunca es el único indicador**: la urgencia lleva icono + texto ("vence en 2 días"); el estado lleva texto en el chip; WIP superado lleva el número.
+- El color **nunca es el único indicador**: la urgencia lleva icono + texto ("vence en 2 días"); el estado lleva texto en el chip; WIP superado lleva el número (`4/3`) y un texto solo para lector ("4 tarjetas, límite 3: límite superado"). Ese contador es **todo** el aviso de RF-13: sin franja ni toast (decidido 2026-10-22).
 - Foco visible siempre (`:focus-visible`), anillo 2 px `--color-focus` con offset; en la sidebar, anillo blanco.
 - Objetivos de clic ≥ 32 px en escritorio (no hay móvil); botones de icono con `aria-label`.
 - Jerarquía: un `h1` por vista (título en la barra superior), `h2` por columna/proyecto, `h3` por tarjeta en Mi día.
 - Panel de detalle: `role="dialog"`, `aria-labelledby` al título, foco atrapado, `Esc` cierra, al cerrar el foco vuelve a la tarjeta.
-- Drag & drop con `@dnd-kit`: anuncios en vivo (`aria-live`) "T-42 tomada", "movida a En curso, posición 2", "soltada"; sensor de teclado activado.
+- Drag & drop con `@dnd-kit`: anuncios en vivo (`aria-live`) "T-42 tomada", "T-42 sobre En curso, posición 2", "T-42 soltada en la columna Hecho", "Movimiento cancelado. T-42 sigue en su sitio"; sensor de teclado activado. Reglas de los anuncios (decidido 2026-10-22):
+  - "posición N" es la posición **visible** (con el filtro o la ventana de Hecho aplicados), que es la que tiene sentido para quien escucha; la API recibe el índice real sobre la columna completa. No "arreglarlo" al revés.
+  - Con teclado, "sobre X" significa **siempre antes de X** (con ratón, después si suelto en la mitad inferior de X), y el anuncio al soltar describe la posición real resultante, no la tarjeta sobre la que estaba: así lo que oigo coincide con dónde cae.
+  - El arrastre por teclado usa un `coordinateGetter` propio (el `sortableKeyboardCoordinates` de dnd-kit no está pensado para varias columnas y exigía dos `→` para cruzar): `←`/`→` solo consideran tarjetas de **otras columnas** (o la columna si está vacía) y van a la misma fila de la columna vecina en una pulsación; `↑`/`↓` solo consideran tarjetas de la **misma columna**. Es una función pura de rectángulos y lleva test unitario.
 - `prefers-reduced-motion`: sin transiciones ni rotación al arrastrar.
 - Idioma: `<html lang="es">`.
 
@@ -272,7 +291,7 @@ Carga: skeletons grises (`surface-hover`) con animación suave; nunca spinners d
 | `j` / `k` | tarjeta siguiente / anterior en la columna |
 | `h` / `l` | columna anterior / siguiente |
 | `Enter` | abrir la tarjeta enfocada |
-| `Space` | tomar/soltar la tarjeta enfocada (modo arrastre por teclado de dnd-kit; flechas para mover) |
+| `Space` | tomar/soltar la tarjeta enfocada (modo arrastre por teclado de dnd-kit; flechas para mover). Durante el arrastre, `Enter` también suelta (no abre la tarjeta) y `Esc` cancela; `j/k/h/l` y `m` quedan inactivos hasta soltar (decidido 2026-10-22) |
 | `m` | menú "Mover a…" sobre la tarjeta enfocada (alternativa al arrastre) |
 | `e` | editar título (en el panel) |
 | `Ctrl+Enter` | guardar entrada de bitácora / título |
@@ -285,7 +304,7 @@ Mi teclado es **latinoamericano**: `[` se escribe con AltGr, que en Windows lleg
 
 ### 6.3 Checklist de revisión (fin de fase 5)
 
-- [ ] Navegar todo el kanban, mover una tarjeta y bloquearla solo con teclado.
+- [ ] Navegar todo el kanban, mover una tarjeta y bloquearla solo con teclado. `Space` → `→`: el primer anuncio ya dice la columna vecina (una sola pulsación).
 - [ ] Lector de pantalla (NVDA): el arrastre anuncia origen y destino.
 - [ ] Zoom del navegador al 200 %: sin scroll horizontal en la barra superior ni en el panel.
 - [ ] Capturas del kit a 1024 y 1440 px.

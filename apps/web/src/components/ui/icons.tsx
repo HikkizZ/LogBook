@@ -95,3 +95,8 @@ export const SidebarIcon = (p: P) => (
     <path d="M6 3v10" />
   </Icon>
 );
+export const PlusIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M8 3v10M3 8h10" />
+  </Icon>
+);
