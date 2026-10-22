@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { DndContextProps, DragEndEvent } from '@dnd-kit/core';
+import type { DndContextProps, DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
 import { makeCard, renderBoard } from '../test/board-fixtures';
 
 // jsdom no calcula geometría, así que el arrastre real (puntero/teclado) no se puede simular. Se captura
@@ -19,7 +19,12 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
   };
 });
 
-function dropEvent(activeId: string, overId: string, below = false): DragEndEvent {
+function dropEvent(
+  activeId: string,
+  overId: string,
+  below = false,
+  activatorEvent: Event = new Event('pointerdown'),
+): DragEndEvent {
   return {
     active: {
       id: activeId,
@@ -28,12 +33,24 @@ function dropEvent(activeId: string, overId: string, below = false): DragEndEven
     over: { id: overId, rect: { top: 0, height: 20 } },
     collisions: null,
     delta: { x: 0, y: 0 },
-    activatorEvent: new Event('pointerdown'),
+    activatorEvent,
   } as unknown as DragEndEvent;
 }
 
 function drop(activeId: string, overId: string, below = false) {
   act(() => captured.props.onDragEnd?.(dropEvent(activeId, overId, below)));
+}
+
+/** Arrastre con teclado: dnd-kit avisa del inicio con el `keydown` que lo activó y luego suelta. */
+function keyboardDrop(activeId: string, overId: string, below = false) {
+  const activatorEvent = new KeyboardEvent('keydown');
+  act(() =>
+    captured.props.onDragStart?.({
+      active: { id: activeId },
+      activatorEvent,
+    } as unknown as DragStartEvent),
+  );
+  act(() => captured.props.onDragEnd?.(dropEvent(activeId, overId, below, activatorEvent)));
 }
 
 const region = (name: string) => screen.getByRole('region', { name });
@@ -190,9 +207,9 @@ describe('soltar una tarjeta (4.3, RF-11, RF-14)', () => {
     ]);
     await screen.findByText('A');
     const { announcements } = captured.props.accessibility ?? {};
-    const active = { id: 'id-1' };
+    const active = { id: 'id-1', rect: { current: { translated: null } } };
     const event = (overId: string) =>
-      ({ active, over: { id: overId } }) as unknown as Parameters<
+      ({ active, over: { id: overId, rect: { top: 0, height: 20 } } }) as unknown as Parameters<
         NonNullable<typeof announcements>['onDragEnd']
       >[0];
 
@@ -209,5 +226,78 @@ describe('soltar una tarjeta (4.3, RF-11, RF-14)', () => {
     const self = { active: { id: 'id-1' }, over: { id: 'id-1' } } as never;
 
     expect(announcements?.onDragOver(self)).toBeUndefined();
+  });
+
+  it('I-2 D-6: con teclado "sobre X" deja la tarjeta antes de X aunque su centro quede más abajo', async () => {
+    const api = renderBoard([
+      makeCard('todo', { number: 1, title: 'Arrastrada' }),
+      makeCard('review', { number: 2, title: 'R1' }),
+      makeCard('review', { number: 3, title: 'R2' }),
+    ]);
+    await screen.findByText('Arrastrada');
+
+    keyboardDrop('id-1', 'id-3', true);
+
+    await waitFor(() => expect(api.moves).toHaveLength(1));
+    expect(api.moves[0]?.body).toEqual({ status: 'review', position: 1 });
+  });
+
+  it('I-2 D-6: con ratón soltar en la mitad inferior de X sigue dejando la tarjeta después de X', async () => {
+    const api = renderBoard([
+      makeCard('todo', { number: 1, title: 'Arrastrada' }),
+      makeCard('review', { number: 2, title: 'R1' }),
+      makeCard('review', { number: 3, title: 'R2' }),
+    ]);
+    await screen.findByText('Arrastrada');
+
+    drop('id-1', 'id-3', true);
+
+    await waitFor(() => expect(api.moves).toHaveLength(1));
+    expect(api.moves[0]?.body).toEqual({ status: 'review', position: 2 });
+  });
+
+  it('I-2 D-6: el anuncio al soltar dice la posición real resultante, no la de la tarjeta de debajo', async () => {
+    renderBoard([
+      makeCard('todo', { number: 1, title: 'A' }),
+      makeCard('review', { number: 2, title: 'R1' }),
+      makeCard('review', { number: 3, title: 'R2' }),
+    ]);
+    await screen.findByText('A');
+    const announce = (kind: 'keyboard' | 'pointer') => {
+      const activatorEvent =
+        kind === 'keyboard' ? new KeyboardEvent('keydown') : new Event('pointerdown');
+      act(() =>
+        captured.props.onDragStart?.({
+          active: { id: 'id-1' },
+          activatorEvent,
+        } as unknown as DragStartEvent),
+      );
+      return captured.props.accessibility?.announcements?.onDragEnd({
+        active: { id: 'id-1', rect: { current: { translated: { top: 100, height: 10 } } } },
+        over: { id: 'id-3', rect: { top: 0, height: 20 } },
+      } as never);
+    };
+
+    expect(announce('keyboard')).toBe('T-1 soltada en Revisión, posición 2.');
+    expect(announce('pointer')).toBe('T-1 soltada en Revisión, posición 3.');
+  });
+
+  it('M-1 D-4: la columna destino lleva contorno discontinuo border-strong y no el relleno primary-soft', async () => {
+    renderBoard([makeCard('todo', { number: 1, title: 'A' })]);
+    await screen.findByText('A');
+
+    act(() =>
+      captured.props.onDragStart?.({
+        active: { id: 'id-1' },
+        activatorEvent: new Event('pointerdown'),
+      } as unknown as DragStartEvent),
+    );
+    act(() =>
+      captured.props.onDragOver?.({ over: { id: 'col:review' } } as unknown as DragOverEvent),
+    );
+
+    expect(region('Revisión')).toHaveClass('outline-2', 'outline-dashed', 'outline-border-strong');
+    expect(region('Revisión')).not.toHaveClass('bg-primary-soft');
+    expect(region('Por hacer')).not.toHaveClass('outline-dashed');
   });
 });

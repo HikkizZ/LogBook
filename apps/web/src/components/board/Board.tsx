@@ -8,20 +8,23 @@ import {
   pointerWithin,
   useSensor,
   useSensors,
+  type Active,
   type Announcements,
   type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
+  type Over,
 } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useNavigate } from 'react-router';
 import type { CardDto, CardStatus } from 'shared';
 import { ApiError } from '../../api/client';
 import { useCreateCard, useMoveCard } from '../../api/queries';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import {
+  applyMove,
   BOARD_GRID_CLASS,
+  boardKeyboardCoordinates,
   COLUMN_DROP_PREFIX,
   COLUMNS,
   groupByStatus,
@@ -96,6 +99,8 @@ export function Board({
   const pendingFocus = useRef<string | null>(null);
   // Las altas se encadenan: dos `Enter` seguidos llegan a la API en orden y la columna conserva el suyo.
   const createQueue = useRef<Promise<unknown>>(Promise.resolve());
+  // Cómo se tomó la tarjeta: con teclado "sobre X" es siempre "antes de X" (los anuncios no reciben el evento).
+  const activator = useRef<Event | null>(null);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overStatus, setOverStatus] = useState<CardStatus | null>(null);
@@ -106,7 +111,7 @@ export function Board({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+      coordinateGetter: boardKeyboardCoordinates,
       // Espacio toma y suelta; Enter también suelta, pero abrir la tarjeta es cosa de `SortableCard`.
       keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] },
     }),
@@ -180,21 +185,44 @@ export function Board({
     void navigate(`/p/${slug}/${ref}`);
   };
 
-  const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
+  const onDragStart = (e: DragStartEvent) => {
+    activator.current = e.activatorEvent;
+    setActiveId(String(e.active.id));
+  };
   const onDragOver = (e: DragOverEvent) => setOverStatus(statusOfDroppable(e.over?.id, cards));
   const clearDrag = () => {
     setActiveId(null);
     setOverStatus(null);
   };
+  /** Destino de un soltado: con ratón decide la mitad de la tarjeta; con teclado siempre antes de ella. */
+  function targetOf(active: Active, over: Over): DropTarget | null {
+    const translated = active.rect.current.translated;
+    const after =
+      !(activator.current instanceof KeyboardEvent) && translated
+        ? translated.top + translated.height / 2 > over.rect.top + over.rect.height / 2
+        : false;
+    return resolveDrop(cards, String(active.id), String(over.id), after);
+  }
+
+  /** Lo que queda tras soltar, con la posición visible real (la misma lógica que `resolveDrop`). */
+  function describeDrop(active: Active, over: Over): string | null {
+    const target = targetOf(active, over);
+    if (!target) return describePlace(over.id);
+    if (target.position === undefined) return `la columna ${STATUS_NAME[target.status]}`;
+    const card = cards.find((c) => c.id === active.id);
+    if (!card) return null;
+    const after = groupByStatus(applyMove(cards, { ref: card.ref, ...target }))[target.status];
+    const shown = new Set(visible[target.status].map((c) => c.id));
+    const index = after.findIndex((c) => c.id === card.id);
+    const position = after.slice(0, index).filter((c) => shown.has(c.id)).length + 1;
+    return `${STATUS_NAME[target.status]}, posición ${position}`;
+  }
+
   const onDragEnd = (e: DragEndEvent) => {
     clearDrag();
     if (!e.over) return;
     const activeId = String(e.active.id);
-    const translated = e.active.rect.current.translated;
-    const after = translated
-      ? translated.top + translated.height / 2 > e.over.rect.top + e.over.rect.height / 2
-      : false;
-    const target = resolveDrop(cards, activeId, String(e.over.id), after);
+    const target = targetOf(e.active, e.over);
     const card = cards.find((c) => c.id === activeId);
     if (!target || !card || isNoop(cards, activeId, target)) return;
     requestMove(card, target);
@@ -225,7 +253,7 @@ export function Board({
         : `${refOf(active.id)} fuera de las columnas.`;
     },
     onDragEnd: ({ active, over }) => {
-      const where = describePlace(over?.id);
+      const where = over ? describeDrop(active, over) : null;
       return where
         ? `${refOf(active.id)} soltada en ${where}.`
         : `${refOf(active.id)} soltada, sin cambios.`;

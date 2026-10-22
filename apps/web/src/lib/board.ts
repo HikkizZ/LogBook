@@ -1,3 +1,4 @@
+import { closestCorners, type KeyboardCoordinateGetter } from '@dnd-kit/core';
 import { cardPrioritySchema, type CardDto, type CardPriority, type CardStatus } from 'shared';
 
 /** Rejilla de seis columnas del tablero (y de su esqueleto): 160 px mínimo cada una. */
@@ -167,3 +168,91 @@ export function isNoop(cards: CardDto[], activeId: string, target: DropTarget): 
   const current = column.findIndex((c) => c.id === active.id);
   return (target.position ?? column.length - 1) === current;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Arrastre por teclado (§6.2, §6.1).
+
+const ARROW_CODES = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+
+/**
+ * `coordinateGetter` del sensor de teclado, al estilo del ejemplo `MultipleContainers` de dnd-kit: el
+ * de `@dnd-kit/sortable` compara solo el borde izquierdo y por eso exigía dos `→` para cruzar de columna.
+ *
+ * `←`/`→` comparan rectángulos completos y solo consideran tarjetas de **otras** columnas (o el
+ * contenedor de la columna si está vacía), siempre en la columna vecina más cercana; `↑`/`↓` solo
+ * tarjetas de la misma columna. Cada droppable declara su columna en `data.status`.
+ */
+export const boardKeyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
+  if (!ARROW_CODES.includes(event.code)) return undefined;
+  event.preventDefault();
+  const { active, collisionRect, droppableRects, droppableContainers, over } = context;
+  if (!active || !collisionRect) return undefined;
+
+  const statusOf = (id: string | number | undefined) =>
+    id === undefined
+      ? undefined
+      : (droppableContainers.get(id)?.data.current?.status as CardStatus);
+  const originStatus = statusOf(active.id);
+  // Tras cruzar de columna el arrastre sigue en la de `over`, no en la de origen.
+  const currentStatus = statusOf(over?.id) ?? originStatus;
+
+  const entries = droppableContainers.getEnabled().flatMap((entry) => {
+    const rect = droppableRects.get(entry.id);
+    const status = statusOf(entry.id);
+    if (entry.disabled || !rect || !status) return [];
+    return [{ entry, rect, status, isColumn: String(entry.id).startsWith(COLUMN_DROP_PREFIX) }];
+  });
+  const withCards = new Set(entries.filter((e) => !e.isColumn).map((e) => e.status));
+  const rectOf = (id: string | number) => droppableRects.get(id);
+  const pickClosest = (candidates: typeof entries, skipOver: boolean) => {
+    const collisions = closestCorners({
+      active,
+      collisionRect,
+      droppableRects,
+      droppableContainers: candidates.map((c) => c.entry),
+      pointerCoordinates: null,
+    });
+    const first = collisions[0]?.id;
+    return skipOver && first === over?.id && collisions.length > 1 ? collisions[1]?.id : first;
+  };
+
+  if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+    const right = event.code === 'ArrowRight';
+    const beyond = entries.filter(
+      ({ rect, status, isColumn }) =>
+        status !== currentStatus &&
+        (!isColumn || !withCards.has(status)) &&
+        (right
+          ? collisionRect.left + collisionRect.width <= rect.left
+          : collisionRect.left >= rect.left + rect.width),
+    );
+    if (beyond.length === 0) return undefined;
+    // Solo la columna vecina: la más cercana en el sentido de la flecha.
+    const edge = right
+      ? Math.min(...beyond.map((e) => e.rect.left))
+      : Math.max(...beyond.map((e) => e.rect.left));
+    const nearest = beyond.find((e) => e.rect.left === edge)?.status;
+    const id = pickClosest(
+      beyond.filter((e) => e.status === nearest),
+      false,
+    );
+    const rect = id === undefined ? undefined : rectOf(id);
+    return rect ? { x: rect.left, y: rect.top } : undefined;
+  }
+
+  const down = event.code === 'ArrowDown';
+  const sameColumn = entries.filter(
+    ({ rect, status, isColumn }) =>
+      !isColumn &&
+      status === currentStatus &&
+      (down ? collisionRect.top < rect.top : collisionRect.top > rect.top),
+  );
+  const id = pickClosest(sameColumn, true);
+  const rect = id === undefined ? undefined : rectOf(id);
+  if (id === undefined || !rect) return undefined;
+  // Dentro de la columna de origen las demás tarjetas se corren con el arrastre (como en sortable):
+  // al bajar, el overlay se alinea por su borde inferior con el de la tarjeta destino.
+  const activeRect = rectOf(active.id);
+  const shifted = currentStatus === originStatus && !!activeRect && rect.top > activeRect.top;
+  return { x: rect.left, y: shifted ? rect.top - (collisionRect.height - rect.height) : rect.top };
+};

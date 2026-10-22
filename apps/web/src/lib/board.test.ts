@@ -1,6 +1,8 @@
+import type { KeyboardCoordinateGetter } from '@dnd-kit/core';
 import { makeCard, withPositions } from '../test/board-fixtures';
 import {
   applyMove,
+  boardKeyboardCoordinates,
   groupByStatus,
   isNoop,
   isRecentlyDone,
@@ -171,5 +173,117 @@ describe('fechas (§4.1, §6.1)', () => {
     const instant = new Date('2026-10-22T01:30:00.000Z');
     expect(todayIn('UTC', instant)).toBe('2026-10-22');
     expect(todayIn('America/Santiago', instant)).toBe('2026-10-21');
+  });
+});
+
+describe('arrastre por teclado: coordinateGetter del tablero (§6.2)', () => {
+  type Context = Parameters<KeyboardCoordinateGetter>[1]['context'];
+  interface Box {
+    status: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }
+
+  // Cuatro columnas de 180 px separadas 14: Por hacer (3 tarjetas), En curso (2), Revisión (vacía) y
+  // Bloqueado (1). Las alturas difieren a propósito: el destino de una flecha no puede depender de ellas.
+  const boxes: Record<string, Box> = {
+    t1: { status: 'todo', left: 0, top: 0, width: 180, height: 80 },
+    t2: { status: 'todo', left: 0, top: 90, width: 180, height: 80 },
+    t3: { status: 'todo', left: 0, top: 180, width: 180, height: 80 },
+    p1: { status: 'in_progress', left: 194, top: 0, width: 180, height: 100 },
+    p2: { status: 'in_progress', left: 194, top: 110, width: 180, height: 60 },
+    'col:review': { status: 'review', left: 388, top: 0, width: 180, height: 400 },
+    b1: { status: 'blocked', left: 582, top: 0, width: 180, height: 80 },
+    'col:todo': { status: 'todo', left: 0, top: 0, width: 180, height: 400 },
+    'col:in_progress': { status: 'in_progress', left: 194, top: 0, width: 180, height: 400 },
+    'col:blocked': { status: 'blocked', left: 582, top: 0, width: 180, height: 400 },
+  };
+  const rectOf = (b: Box) => ({
+    left: b.left,
+    top: b.top,
+    width: b.width,
+    height: b.height,
+    right: b.left + b.width,
+    bottom: b.top + b.height,
+  });
+
+  function press(
+    code: string,
+    activeId: string,
+    options: { overId?: string; shift?: { x?: number; y?: number } } = {},
+  ) {
+    const entries = Object.entries(boxes).map(([id, b]) => ({
+      id,
+      disabled: false,
+      data: { current: { status: b.status } },
+    }));
+    const rects = new Map(Object.entries(boxes).map(([id, b]) => [id, rectOf(b)]));
+    const own = boxes[activeId] as Box;
+    const collisionRect = rectOf({
+      ...own,
+      left: own.left + (options.shift?.x ?? 0),
+      top: own.top + (options.shift?.y ?? 0),
+    });
+    const overId = options.overId ?? activeId;
+    const context = {
+      active: { id: activeId },
+      collisionRect,
+      droppableRects: rects,
+      droppableContainers: {
+        getEnabled: () => entries,
+        get: (id: string) => entries.find((e) => e.id === id),
+      },
+      over: { id: overId },
+    } as unknown as Context;
+    const preventDefault = vi.fn();
+    const result = boardKeyboardCoordinates({ code, preventDefault } as unknown as KeyboardEvent, {
+      active: activeId,
+      currentCoordinates: { x: collisionRect.left, y: collisionRect.top },
+      context,
+    });
+    return { result, preventDefault };
+  }
+
+  it('I-1 D-1: una sola flecha derecha pasa a la columna vecina, a la tarjeta más cercana', () => {
+    expect(press('ArrowRight', 't2').result).toEqual({ x: 194, y: 110 });
+    expect(press('ArrowRight', 't1').result).toEqual({ x: 194, y: 0 });
+  });
+
+  it('I-1 D-1: aunque el overlay quede una fracción de píxel a la izquierda, no se queda en su columna', () => {
+    const { result } = press('ArrowRight', 't2', { shift: { x: -0.4 } });
+
+    expect(result).toEqual({ x: 194, y: 110 });
+  });
+
+  it('I-1 D-1: una columna vacía es el destino (su contenedor), y se cruza de largo hacia la siguiente', () => {
+    expect(press('ArrowRight', 'p2').result).toEqual({ x: 388, y: 0 });
+    expect(press('ArrowRight', 'p2', { overId: 'col:review' }).result).toEqual({ x: 582, y: 0 });
+    expect(press('ArrowLeft', 'b1', { overId: 'col:review' }).result).toEqual({ x: 194, y: 0 });
+  });
+
+  it('I-1 D-1: no hay columna más allá de los extremos', () => {
+    expect(press('ArrowRight', 'b1', { overId: 'b1' }).result).toBeUndefined();
+    expect(press('ArrowLeft', 't1').result).toBeUndefined();
+  });
+
+  it('I-1 D-1: izquierda vuelve a la columna vecina, no a la primera', () => {
+    expect(press('ArrowLeft', 'p2', { overId: 'p2' }).result).toEqual({ x: 0, y: 90 });
+  });
+
+  it('I-1 D-1: arriba y abajo se quedan en la columna, sin saltar a la vecina', () => {
+    expect(press('ArrowDown', 't1').result).toEqual({ x: 0, y: 90 });
+    expect(press('ArrowDown', 't3').result).toBeUndefined();
+    expect(press('ArrowUp', 't2', { shift: { y: 0 } }).result).toEqual({ x: 0, y: 0 });
+    expect(press('ArrowUp', 't1').result).toBeUndefined();
+  });
+
+  it('I-1 D-1: una tecla que no es flecha no hace nada ni se captura', () => {
+    const { result, preventDefault } = press('KeyA', 't1');
+
+    expect(result).toBeUndefined();
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(press('ArrowDown', 't1').preventDefault).toHaveBeenCalled();
   });
 });

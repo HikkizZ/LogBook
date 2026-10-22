@@ -14,6 +14,7 @@ interface SortableCardProps {
 export function SortableCard({ card, today, onOpen }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
+    data: { status: card.status },
     attributes: { roleDescription: 'tarjeta arrastrable' },
   });
 

@@ -59,7 +59,10 @@ export function Column({
 }: ColumnProps) {
   const headingId = useId();
   const listId = useId();
-  const { setNodeRef } = useDroppable({ id: `${COLUMN_DROP_PREFIX}${status}` });
+  const { setNodeRef } = useDroppable({
+    id: `${COLUMN_DROP_PREFIX}${status}`,
+    data: { status },
+  });
   const limit = status === 'in_progress' && wipLimit ? wipLimit : 0;
   const overLimit = limit > 0 && count > limit;
 
@@ -70,7 +73,8 @@ export function Column({
       aria-labelledby={headingId}
       className={cn(
         'flex min-w-0 flex-col gap-3 rounded-md transition-colors duration-120 ease-out',
-        highlighted && 'bg-primary-soft',
+        // Contorno hacia dentro: el contenedor con scroll recortaría uno exterior en las columnas de los extremos.
+        highlighted && 'outline-2 -outline-offset-2 outline-dashed outline-border-strong',
       )}
     >
       <header className="flex h-8 items-center gap-2">
