@@ -1,4 +1,4 @@
-import { useState, type ComponentProps, type FormEvent } from 'react';
+import { useId, useState, type ComponentProps, type FormEvent } from 'react';
 import { LABEL_COLORS, type LabelColor, type LabelDto } from 'shared';
 import {
   useCreateLabel,
@@ -49,6 +49,7 @@ function NewLabelForm() {
   const [name, setName] = useState('');
   const [color, setColor] = useState<LabelColor>('gris');
   const [error, setError] = useState('');
+  const errorId = useId();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -75,6 +76,7 @@ function NewLabelForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
           />
         </div>
         <ColorSelect
@@ -87,7 +89,7 @@ function NewLabelForm() {
         </Button>
       </div>
       {error && (
-        <p role="alert" className="m-0 text-sm text-danger">
+        <p id={errorId} role="alert" className="m-0 text-sm text-danger">
           {error}
         </p>
       )}
@@ -138,6 +140,14 @@ function LabelRow({ label, onDelete }: { label: LabelDto; onDelete: () => void }
   const update = useUpdateLabel();
   const [name, setName] = useState(label.name);
   const [error, setError] = useState('');
+  const errorId = useId();
+
+  // La fila no se remonta al renombrar (conservaría el foco): el campo sigue al nombre guardado.
+  const [savedName, setSavedName] = useState(label.name);
+  if (savedName !== label.name) {
+    setSavedName(label.name);
+    setName(label.name);
+  }
 
   const saveName = () => {
     const trimmed = name.trim();
@@ -181,10 +191,11 @@ function LabelRow({ label, onDelete }: { label: LabelDto; onDelete: () => void }
             onChange={(e) => setName(e.target.value)}
             onBlur={saveName}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Enter') saveName();
               if (e.key === 'Escape') setName(label.name);
             }}
             aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
           />
         </div>
         <ColorSelect
@@ -202,7 +213,7 @@ function LabelRow({ label, onDelete }: { label: LabelDto; onDelete: () => void }
         </Button>
       </div>
       {error && (
-        <p role="alert" className="m-0 ml-5 text-sm text-danger">
+        <p id={errorId} role="alert" className="m-0 ml-5 text-sm text-danger">
           {error}
         </p>
       )}
@@ -233,11 +244,7 @@ export function LabelsPage() {
       {labels && (
         <ul aria-label="Etiquetas" className="m-0 flex list-none flex-col gap-3 p-0">
           {labels.map((l) => (
-            <LabelRow
-              key={`${l.id}:${l.name}:${l.color}`}
-              label={l}
-              onDelete={() => setDeleting(l)}
-            />
+            <LabelRow key={l.id} label={l} onDelete={() => setDeleting(l)} />
           ))}
         </ul>
       )}

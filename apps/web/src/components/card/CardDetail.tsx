@@ -272,7 +272,7 @@ function LoadedCard({
             type="button"
             role="tab"
             aria-selected={tab === t.id}
-            aria-controls={`${ids}-panel-${t.id}`}
+            aria-controls={`${ids}-panel`}
             tabIndex={tab === t.id ? 0 : -1}
             onClick={() => setTab(t.id)}
             onKeyDown={(e) => onTabKeyDown(e, index)}
@@ -290,7 +290,7 @@ function LoadedCard({
 
       <div
         role="tabpanel"
-        id={`${ids}-panel-${tab}`}
+        id={`${ids}-panel`}
         aria-labelledby={`${ids}-tab-${tab}`}
         className="flex min-h-0 flex-1 flex-col"
       >
@@ -401,7 +401,8 @@ function DateField({
         onChange={(e) => {
           const next = e.target.value;
           setCleared(next === '');
-          if (next) onCommit(next);
+          // Un año a medio teclear (0002-…) cae fuera de min/max: no se guarda hasta que sea válido.
+          if (next && e.target.validity.valid) onCommit(next);
         }}
         onBlur={() => {
           if (cleared && value !== null) onCommit(null);

@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { SettingsDto, UpdateSettingsBody } from 'shared';
 import { useEndSession, useUpdateSettings } from '../api/admin-queries';
+import { isUnauthorized } from '../api/client';
 import { useSettings } from '../api/queries';
 import { Button, Dialog, Input, Skeleton, useToast } from '../components/ui';
 
@@ -103,7 +104,9 @@ function SettingsForm({ saved }: { saved: SettingsDto }) {
     if (Object.keys(body).length === 0) return;
     update.mutate(body, {
       onSuccess: () => toast.show({ tone: 'success', message: 'Ajustes guardados' }),
-      onError: (err) => toast.show({ tone: 'danger', message: err.message }),
+      onError: (err) => {
+        if (!isUnauthorized(err)) toast.show({ tone: 'danger', message: err.message });
+      },
     });
   };
 
@@ -170,7 +173,9 @@ function SessionSection() {
           disabled={logout.isPending}
           onClick={() =>
             logout.mutate(undefined, {
-              onError: (e) => toast.show({ tone: 'danger', message: e.message }),
+              onError: (e) => {
+                if (!isUnauthorized(e)) toast.show({ tone: 'danger', message: e.message });
+              },
             })
           }
         >
@@ -200,7 +205,7 @@ function SessionSection() {
               logoutAll.mutate(undefined, {
                 onError: (e) => {
                   setConfirming(false);
-                  toast.show({ tone: 'danger', message: e.message });
+                  if (!isUnauthorized(e)) toast.show({ tone: 'danger', message: e.message });
                 },
               })
             }

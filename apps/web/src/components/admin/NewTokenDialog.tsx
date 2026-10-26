@@ -56,7 +56,7 @@ export function NewTokenDialog({ onClose, timeZone }: { onClose: () => void; tim
 
   if (created) {
     return (
-      <Dialog open onClose={close} title="Token creado" widthClass="max-w-lg">
+      <Dialog open onClose={close} title="Token creado" widthClass="max-w-dialog-wide">
         <div className="flex flex-col gap-3">
           <p className="m-0 text-fg-muted">
             Copia el token de <strong className="text-fg">{created.name}</strong> ahora. No se

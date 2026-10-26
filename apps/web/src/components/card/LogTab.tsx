@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import type { LogEntryDto, LogKind } from 'shared';
 import {
   useAddLogEntry,
@@ -38,6 +38,12 @@ export function LogTab({ cardRef }: { cardRef: string }) {
   const timeZone = settings.data?.timezone ?? browserTimeZone();
   const [onlyNotes, setOnlyNotes] = usePersistedBoolean(ONLY_NOTES_KEY, false);
   const listRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const remove = useDeleteLogEntry();
+
+  // La fila borrada se lleva el botón que tenía el foco: pasa al cuadro de la bitácora.
+  const deleteEntry = (entry: LogEntryDto) =>
+    remove.mutate(entry, { onSuccess: () => composerRef.current?.focus() });
 
   const entries = (log.data ?? []).filter((e) => !onlyNotes || !isSystem(e));
 
@@ -81,14 +87,14 @@ export function LogTab({ cardRef }: { cardRef: string }) {
                 {isSystem(entry) ? (
                   <SystemEntry entry={entry} timeZone={timeZone} />
                 ) : (
-                  <NoteEntry entry={entry} timeZone={timeZone} />
+                  <NoteEntry entry={entry} timeZone={timeZone} onDelete={deleteEntry} />
                 )}
               </li>
             ))}
           </ol>
         )}
       </div>
-      <Composer cardRef={cardRef} timeZone={timeZone} />
+      <Composer cardRef={cardRef} timeZone={timeZone} textRef={composerRef} />
     </div>
   );
 }
@@ -97,7 +103,7 @@ function EntryTime({ iso, timeZone }: { iso: string; timeZone: string }) {
   return (
     <Tooltip label={formatAbsolute(iso, timeZone)} describe={false}>
       {(trigger) => (
-        <time dateTime={iso} className="text-xs text-fg-muted" {...trigger}>
+        <time dateTime={iso} tabIndex={0} className="text-xs text-fg-muted" {...trigger}>
           {formatLogTime(iso, timeZone)}
         </time>
       )}
@@ -124,9 +130,16 @@ function SystemEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string
  * `note` y `blocked`: se pueden editar y borrar (RF-32).
  * TODO(diseño): RF-32 permite borrar también las de sistema; la UI no lo ofrece (el plan habla de "notas propias").
  */
-function NoteEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }) {
+function NoteEntry({
+  entry,
+  timeZone,
+  onDelete,
+}: {
+  entry: LogEntryDto;
+  timeZone: string;
+  onDelete: (entry: LogEntryDto) => void;
+}) {
   const edit = useEditLogEntry();
-  const remove = useDeleteLogEntry();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.body);
   const [confirming, setConfirming] = useState(false);
@@ -152,6 +165,7 @@ function NoteEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }
   };
 
   const blocked = entry.kind === 'blocked';
+  const when = formatLogTime(entry.occurredAt, timeZone);
   return (
     <div className="group rounded-md border border-border bg-surface p-3">
       <div className="mb-1 flex items-center gap-2">
@@ -171,7 +185,7 @@ function NoteEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }
           >
             <Button
               variant="secondary"
-              aria-label="Editar entrada"
+              aria-label={`Editar entrada de ${when}`}
               onClick={() => {
                 setDraft(entry.body);
                 setEditing(true);
@@ -181,7 +195,7 @@ function NoteEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }
             </Button>
             <Button
               variant="destructive"
-              aria-label="Borrar entrada"
+              aria-label={`Borrar entrada de ${when}`}
               onClick={() => setConfirming(true)}
             >
               Borrar
@@ -218,7 +232,7 @@ function NoteEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }
         onCancel={() => setConfirming(false)}
         onConfirm={() => {
           setConfirming(false);
-          remove.mutate(entry);
+          onDelete(entry);
         }}
       >
         Se quita de la bitácora de {entry.cardRef}. No se puede deshacer.
@@ -228,12 +242,19 @@ function NoteEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }
 }
 
 /** Cuadro al pie (RF-31): `Ctrl+Enter` guarda; "otra fecha" permite registrar algo de ayer (RF-30). */
-function Composer({ cardRef, timeZone }: { cardRef: string; timeZone: string }) {
+function Composer({
+  cardRef,
+  timeZone,
+  textRef,
+}: {
+  cardRef: string;
+  timeZone: string;
+  textRef: RefObject<HTMLTextAreaElement | null>;
+}) {
   const add = useAddLogEntry();
   const [body, setBody] = useState('');
   const [otherDate, setOtherDate] = useState(false);
   const [when, setWhen] = useState('');
-  const textRef = useRef<HTMLTextAreaElement>(null);
 
   const submit = () => {
     const text = body.trim();

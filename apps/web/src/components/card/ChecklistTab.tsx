@@ -102,7 +102,10 @@ export function ChecklistTab({ cardRef, items }: { cardRef: string; items: Check
                   item={item}
                   onToggle={(checked) => update.mutate({ id: item.id, done: checked })}
                   onRename={(value) => update.mutate({ id: item.id, text: value })}
-                  onRemove={() => remove.mutate(item.id)}
+                  onRemove={() =>
+                    // La fila quitada se lleva el botón que tenía el foco: pasa al campo de agregar.
+                    remove.mutate(item.id, { onSuccess: () => inputRef.current?.focus() })
+                  }
                 />
               ))}
             </ul>

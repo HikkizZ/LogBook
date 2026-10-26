@@ -9,7 +9,7 @@ import type {
   UpdateChecklistItemBody,
 } from 'shared';
 import { useToast } from '../components/ui/Toast';
-import { api } from './client';
+import { api, isUnauthorized } from './client';
 import { queryKeys } from './queries';
 
 // ---------------------------------------------------------------------------------------------
@@ -99,8 +99,10 @@ function editChecklist(
 
 function useErrorToast() {
   const toast = useToast();
-  return (what: string) => (error: Error) =>
+  return (what: string) => (error: Error) => {
+    if (isUnauthorized(error)) return;
     toast.show({ tone: 'danger', message: `${what}: ${error.message}` });
+  };
 }
 
 // ---------------------------------------------------------------------------------------------

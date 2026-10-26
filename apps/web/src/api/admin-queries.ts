@@ -34,6 +34,8 @@ function useRefreshLabels() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.labels });
     void queryClient.invalidateQueries({ queryKey: ['cards'] });
+    // El detalle de cada tarjeta lleva copia del nombre y el color de sus etiquetas.
+    void queryClient.invalidateQueries({ queryKey: ['card'] });
   };
 }
 

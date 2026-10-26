@@ -104,6 +104,18 @@ describe('pestaña Checklist (5.4, RF-24)', () => {
     expect(tile('T-1')).toHaveTextContent('1/2');
   });
 
+  it('M-4 §6.1: tras quitar el último ítem el foco pasa a "Agregar ítem", no al body', async () => {
+    const { user, api, dialog } = await openChecklist();
+
+    await user.click(await within(dialog).findByRole('button', { name: 'Quitar "Publicar"' }));
+
+    await waitFor(() => expect(api.checklistDeletes).toHaveLength(1));
+    await waitFor(() =>
+      expect(within(dialog).queryByRole('button', { name: 'Quitar "Publicar"' })).toBeNull(),
+    );
+    expect(within(dialog).getByRole('textbox', { name: 'Agregar ítem' })).toHaveFocus();
+  });
+
   it('un ítem que la API rechaza se revierte y avisa', async () => {
     const { user, api, dialog } = await openChecklist();
     // El servidor falso no tiene ruta de error: se fuerza respondiendo 500 al PATCH.

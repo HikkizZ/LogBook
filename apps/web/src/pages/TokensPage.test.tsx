@@ -205,6 +205,30 @@ describe('Tokens (RF-61, 4.7)', () => {
     expect(await screen.findByText('Copiado')).toBeInTheDocument();
   });
 
+  it('M-6 §5: un 401 al revocar lleva a /login sin toast de error encima', async () => {
+    fakeTokensApi([token('t1', 'Claude Code PC')]);
+    server.use(
+      http.delete(url('/tokens/:id'), () =>
+        HttpResponse.json(
+          { error: { code: 'UNAUTHORIZED', message: 'Sesión no válida' } },
+          { status: 401 },
+        ),
+      ),
+    );
+    renderAdmin(<TokensPage />);
+    const user = userEvent.setup();
+    await cell('Claude Code PC');
+
+    await user.click(screen.getByRole('button', { name: 'Revocar Claude Code PC' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Revocar' }),
+    );
+
+    expect(await screen.findByText('Pantalla de login')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.queryByText(/Sesión no válida/)).not.toBeInTheDocument();
+  });
+
   it('exige un nombre antes de crear', async () => {
     const api = fakeTokensApi([]);
     renderAdmin(<TokensPage />);

@@ -130,6 +130,65 @@ describe('panel de detalle (5.1)', () => {
     expect(tile('T-1')).toHaveTextContent('15 ene');
   });
 
+  it('I-2 §4.2: un año parcial tecleado (0002-10-26) no manda PATCH; la fecha completa sí', async () => {
+    const user = userEvent.setup();
+    const api = renderPanel([CARD()]);
+    const dialog = await openWithEnter(user);
+    const due = within(dialog).getByLabelText('Fecha límite');
+
+    fireEvent.change(due, { target: { value: '0002-10-26' } });
+    fireEvent.change(due, { target: { value: '0202-10-26' } });
+    expect(api.patches).toEqual([]);
+
+    fireEvent.change(due, { target: { value: '2099-01-15' } });
+    await waitFor(() =>
+      expect(api.patches).toEqual([{ ref: 'T-1', body: { dueDate: '2099-01-15' } }]),
+    );
+  });
+
+  it('M-1 §6.1: el aria-controls de cada pestaña apunta a un elemento que existe', async () => {
+    const user = userEvent.setup();
+    renderPanel([CARD()]);
+    const dialog = await openWithEnter(user);
+
+    for (const tab of within(dialog).getAllByRole('tab')) {
+      const controls = tab.getAttribute('aria-controls');
+      expect(controls, tab.textContent ?? '').toBeTruthy();
+      expect(document.getElementById(controls as string), tab.textContent ?? '').not.toBeNull();
+    }
+  });
+
+  it('M-6 §5: un 401 en una mutación lleva a /login sin toast de error encima', async () => {
+    const user = userEvent.setup();
+    const api = renderPanel([CARD()]);
+    api.patchError = { status: 401, message: 'Sesión no válida' };
+    const dialog = await openWithEnter(user);
+
+    await user.selectOptions(within(dialog).getByLabelText('Prioridad'), 'urgent');
+
+    await waitFor(() => expect(location()).toHaveTextContent('/login'));
+    await waitFor(() => expect(api.patches).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.queryByText(/No se pudo guardar el cambio/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sesión no válida/)).not.toBeInTheDocument();
+  });
+
+  it('M-10 §6.1: tras archivar la tarjeta, Esc deja el foco en un elemento real (no en el body)', async () => {
+    const user = userEvent.setup();
+    const api = renderPanel([CARD(), makeCard('todo', { number: 2, title: 'Otra' })]);
+    const dialog = await openWithEnter(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Más acciones' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Archivar tarjeta' }));
+    await waitFor(() => expect(api.archives).toEqual([{ ref: 'T-1', archive: true }]));
+    await waitFor(() => expect(tile('T-1')).toBeNull());
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(document.activeElement).not.toBe(document.body);
+    expect(tile('T-2')).toHaveFocus();
+  });
+
   it('RF-21: un cambio rechazado por la API se revierte y se avisa', async () => {
     const user = userEvent.setup();
     const api = renderPanel([CARD()]);

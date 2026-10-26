@@ -154,4 +154,63 @@ describe('Etiquetas (RF-23, 4.8)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(api.deleted).toEqual([]);
   });
+  it('M-5 §6.1: renombrar con Enter conserva el foco en el campo', async () => {
+    fakeLabelsApi([label('l1', 'bug', 'magenta')]);
+    renderAdmin(<LabelsPage />);
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText('Nombre de la etiqueta bug');
+
+    await user.clear(input);
+    await user.type(input, 'defecto{Enter}');
+
+    const renamed = await screen.findByLabelText('Nombre de la etiqueta defecto');
+    expect(renamed).toHaveFocus();
+    expect(renamed).toHaveValue('defecto');
+  });
+
+  it('M-5 §6.1: el error de un nombre duplicado queda enlazado al campo con aria-describedby', async () => {
+    fakeLabelsApi([label('l1', 'bug'), label('l2', 'docs')]);
+    renderAdmin(<LabelsPage />);
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText('Nombre de la etiqueta bug');
+
+    await user.clear(input);
+    await user.type(input, 'docs{Enter}');
+
+    const alert = await screen.findByRole('alert');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription(alert.textContent ?? '');
+    expect(input.getAttribute('aria-describedby')).toBe(alert.id);
+  });
+
+  it('M-5 §6.1: el error del formulario de alta también queda enlazado', async () => {
+    fakeLabelsApi([label('l1', 'bug')]);
+    renderAdmin(<LabelsPage />);
+    const user = userEvent.setup();
+    await screen.findByLabelText('Nombre de la etiqueta bug');
+
+    await user.click(screen.getByRole('button', { name: /Añadir/ }));
+
+    const alert = await screen.findByRole('alert');
+    expect(screen.getByLabelText('Nombre de la nueva etiqueta')).toHaveAttribute(
+      'aria-describedby',
+      alert.id,
+    );
+  });
+
+  it('M-9 RF-23: renombrar o recolorear una etiqueta invalida los detalles de tarjeta en caché', async () => {
+    fakeLabelsApi([label('l1', 'bug', 'magenta')]);
+    const { queryClient } = renderAdmin(<LabelsPage />);
+    const user = userEvent.setup();
+    queryClient.setQueryData(['card', 'T-1'], { ref: 'T-1' });
+    const input = await screen.findByLabelText('Nombre de la etiqueta bug');
+    expect(queryClient.getQueryState(['card', 'T-1'])?.isInvalidated).toBe(false);
+
+    await user.clear(input);
+    await user.type(input, 'error{Enter}');
+
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['card', 'T-1'])?.isInvalidated).toBe(true),
+    );
+  });
 });

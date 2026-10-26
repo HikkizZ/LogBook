@@ -115,7 +115,7 @@ describe('pestaña Bitácora (5.2)', () => {
     const { user, api, dialog } = await openLog();
     await within(dialog).findByText('Primera nota');
 
-    await user.click(within(dialog).getByRole('button', { name: 'Editar entrada' }));
+    await user.click(within(dialog).getByRole('button', { name: /^Editar entrada de / }));
     const box = within(dialog).getByRole('textbox', { name: 'Editar entrada' });
     await user.clear(box);
     await user.type(box, 'Nota corregida{Control>}{Enter}{/Control}');
@@ -131,13 +131,13 @@ describe('pestaña Bitácora (5.2)', () => {
     await within(dialog).findByText('Primera nota');
     const id = api.log[0]?.id;
 
-    await user.click(within(dialog).getByRole('button', { name: 'Borrar entrada' }));
+    await user.click(within(dialog).getByRole('button', { name: /^Borrar entrada de / }));
     const confirm = await screen.findByRole('dialog', { name: '¿Borrar esta entrada?' });
     await user.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
     expect(api.logDeletes).toEqual([]);
     expect(within(dialog).getByText('Primera nota')).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Borrar entrada' }));
+    await user.click(within(dialog).getByRole('button', { name: /^Borrar entrada de / }));
     await user.click(
       within(await screen.findByRole('dialog', { name: '¿Borrar esta entrada?' })).getByRole(
         'button',
@@ -147,6 +147,44 @@ describe('pestaña Bitácora (5.2)', () => {
 
     await waitFor(() => expect(api.logDeletes).toEqual([id]));
     await waitFor(() => expect(within(dialog).queryByText('Primera nota')).not.toBeInTheDocument());
+  });
+
+  it('M-3 §6.1: los botones de cada nota llevan su hora y la hora tiene la fecha absoluta al enfocarla', async () => {
+    const { dialog } = await openLog([
+      makeEntry('note', { body: 'Primera nota', occurredAt: new Date().toISOString() }),
+    ]);
+    await within(dialog).findByText('Primera nota');
+
+    expect(
+      within(dialog).getByRole('button', { name: /^Editar entrada de hoy \d{2}:\d{2}$/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: /^Borrar entrada de hoy \d{2}:\d{2}$/ }),
+    ).toBeInTheDocument();
+
+    const time = dialog.querySelector('time') as HTMLElement;
+    time.focus();
+    expect(time).toHaveFocus();
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/\d{4}/);
+  });
+
+  it('M-4 §6.1: tras borrar una nota el foco pasa al cuadro de la bitácora, no al body', async () => {
+    const { user, api, dialog } = await openLog();
+    await within(dialog).findByText('Primera nota');
+
+    await user.click(within(dialog).getByRole('button', { name: /^Borrar entrada de / }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: '¿Borrar esta entrada?' })).getByRole(
+        'button',
+        { name: 'Borrar' },
+      ),
+    );
+
+    await waitFor(() => expect(api.logDeletes).toHaveLength(1));
+    await waitFor(() => expect(within(dialog).queryByText('Primera nota')).not.toBeInTheDocument());
+    expect(
+      within(dialog).getByRole('textbox', { name: 'Nueva entrada de bitácora' }),
+    ).toHaveFocus();
   });
 
   it('RF-32: las entradas de sistema no se editan ni se borran desde la UI', async () => {

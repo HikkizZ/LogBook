@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isUnauthorized } from '../api/client';
 import { useRevokeToken, useTokens, type ApiTokenDto } from '../api/admin-queries';
 import { useSettings } from '../api/queries';
 import { NewTokenDialog } from '../components/admin/NewTokenDialog';
@@ -25,7 +26,9 @@ function RevokeDialog({ token, onClose }: { token: ApiTokenDto; onClose: () => v
           onClick={() =>
             revoke.mutate(token.id, {
               onSuccess: onClose,
-              onError: (e) => toast.show({ tone: 'danger', message: e.message }),
+              onError: (e) => {
+                if (!isUnauthorized(e)) toast.show({ tone: 'danger', message: e.message });
+              },
             })
           }
         >

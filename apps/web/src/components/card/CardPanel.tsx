@@ -39,7 +39,13 @@ export function CardPanel({ slug, cardRef, onClose, onCreated, onProjectChanged 
       const tile = lastRef.current
         ? document.querySelector<HTMLElement>(`[data-card-ref="${lastRef.current}"]`)
         : null;
-      (tile ?? previous)?.focus();
+      // Si la tarjeta ya no está en el tablero (archivada, movida) ni quien tenía el foco: la primera ficha, o el botón de nueva tarjeta.
+      const target =
+        tile ??
+        (previous?.isConnected ? previous : null) ??
+        document.querySelector<HTMLElement>('[data-card-ref]') ??
+        document.querySelector<HTMLElement>('button[aria-keyshortcuts="n"]');
+      target?.focus();
     };
   }, [previous]);
 
