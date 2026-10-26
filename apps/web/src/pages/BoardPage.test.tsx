@@ -125,7 +125,9 @@ describe('Board (4.2)', () => {
     renderBoard([]);
     expect(await screen.findByText('Crea tu primera tarjeta')).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole('button', { name: 'Nueva tarjeta' })[0] as HTMLElement);
+    await user.click(
+      within(screen.getByRole('main')).getByRole('button', { name: 'Nueva tarjeta' }),
+    );
 
     expect(
       await screen.findByRole('textbox', { name: 'Título de la nueva tarjeta en Por hacer' }),
@@ -384,7 +386,7 @@ describe('tarjeta rápida (4.4, RF-26)', () => {
     expect(screen.getByRole('button', { name: 'Nueva tarjeta en En curso' })).toBeInTheDocument();
   });
 
-  it('RF-26: n y el botón "Nueva tarjeta" de la barra abren la tarjeta rápida de Por hacer', async () => {
+  it('Plan 4.4: n y el botón "Nueva tarjeta" de la barra abren el panel en modo creación', async () => {
     const user = userEvent.setup();
     renderBoard([makeCard('backlog')]);
     await boardReady();
@@ -392,17 +394,13 @@ describe('tarjeta rápida (4.4, RF-26)', () => {
     expect(button).toBeEnabled();
 
     await user.click(button);
-    expect(
-      await screen.findByRole('textbox', { name: 'Título de la nueva tarjeta en Por hacer' }),
-    ).toHaveFocus();
+    expect(await screen.findByRole('dialog', { name: 'Nueva tarjeta' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('textbox', { name: /Título de la nueva/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     await user.click(document.body);
     await user.keyboard('n');
-    expect(
-      await screen.findByRole('textbox', { name: 'Título de la nueva tarjeta en Por hacer' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Nueva tarjeta' })).toBeInTheDocument();
   });
 
   it('un error al crear avisa con "Reintentar" y no pierde el orden de las siguientes', async () => {

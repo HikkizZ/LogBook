@@ -25,6 +25,11 @@ export class ApiError extends Error {
   }
 }
 
+/** El 401 ya redirigió a `/login` (ApiBridge): un aviso de error encima del login sobra. */
+export function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
 export interface ApiHandlers {
   /** 401 en una petición ya autenticada. `expired` = la sesión estaba activa en esta carga de página. */
   onUnauthorized?: (info: { expired: boolean }) => void;

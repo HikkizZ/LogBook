@@ -16,7 +16,7 @@ import {
   type DragStartEvent,
   type Over,
 } from '@dnd-kit/core';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import type { CardDto, CardStatus } from 'shared';
 import { ApiError } from '../../api/client';
 import { useCreateCard, useMoveCard } from '../../api/queries';
@@ -38,6 +38,7 @@ import {
 } from '../../lib/board';
 import { useToast } from '../ui/Toast';
 import { BlockReasonDialog } from './BlockReasonDialog';
+import { CloseNoteDialog } from './CloseNoteDialog';
 import { CardTile } from './CardTile';
 import { Column } from './Column';
 import { MoveToDialog } from './MoveToDialog';
@@ -92,6 +93,7 @@ export function Board({
   onQuickAddStatusChange,
 }: BoardProps) {
   const navigate = useNavigate();
+  const { search } = useLocation();
   const toast = useToast();
   const move = useMoveCard(slug);
   const create = useCreateCard(slug);
@@ -107,6 +109,8 @@ export function Board({
   const [showAllDone, setShowAllDone] = useState(false);
   const [blocking, setBlocking] = useState<{ ref: string; position?: number } | null>(null);
   const [movingRef, setMovingRef] = useState<string | null>(null);
+  // RF-34: tarjeta recién pasada a Hecho, para ofrecer la entrada de cierre.
+  const [closingRef, setClosingRef] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -155,7 +159,12 @@ export function Board({
       return;
     }
     pendingFocus.current = card.ref;
-    move.mutate({ ref: card.ref, status: target.status, position: target.position });
+    const closes = target.status === 'done' && card.status !== 'done';
+    // Solo se ofrece si la API aceptó el movimiento; un fallo ya lo avisa `useMoveCard`.
+    move
+      .mutateAsync({ ref: card.ref, status: target.status, position: target.position })
+      .then(() => closes && setClosingRef(card.ref))
+      .catch(() => undefined);
   };
 
   const confirmBlock = (reason: string) => {
@@ -180,9 +189,9 @@ export function Board({
     createQueue.current = createQueue.current.then(run);
   };
 
+  /** El detalle es un panel sobre el tablero (§3): la URL cambia a `/p/slug/T-42` y conserva los filtros. */
   const openCard = (ref: string) => {
-    // TODO(fase 5): abrir el panel de detalle (CardPanel) en vez de navegar a la página provisional.
-    void navigate(`/p/${slug}/${ref}`);
+    void navigate({ pathname: `/p/${slug}/${ref}`, search });
   };
 
   const onDragStart = (e: DragStartEvent) => {
@@ -354,6 +363,7 @@ export function Board({
         onConfirm={confirmBlock}
         onCancel={() => setBlocking(null)}
       />
+      <CloseNoteDialog cardRef={closingRef} onClose={() => setClosingRef(null)} />
       <MoveToDialog
         card={movingCard}
         onClose={() => setMovingRef(null)}

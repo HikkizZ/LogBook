@@ -76,6 +76,7 @@
   /* Anchos fijos de §3 y §4.3 */
   --container-dialog: 420px;
   --container-dialog-wide: 560px;
+  --container-panel: 480px;
   --container-login: 360px;
   --radius-sm: 4px;
   --radius-md: 6px;

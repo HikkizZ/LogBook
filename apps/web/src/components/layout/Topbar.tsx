@@ -20,7 +20,8 @@ const TITLES: Record<string, string> = {
 export function Topbar() {
   const { pathname } = useLocation();
   const projectMatch = useMatch('/p/:slug/*');
-  const boardMatch = useMatch('/p/:slug');
+  // M-7 (fase 4): los filtros siguen visibles con el panel abierto (`/p/:slug/:ref`), el tablero sigue detrás.
+  const boardMatch = useMatch('/p/:slug/*');
   const newCard = useNewCardAction();
   const { data: projects } = useProjects();
   const project = projectMatch && projects?.find((p) => p.slug === projectMatch.params.slug);
