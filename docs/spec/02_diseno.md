@@ -306,16 +306,16 @@ Mi teclado es **latinoamericano**: `[` se escribe con AltGr, que en Windows lleg
 
 ### 6.3 Checklist de revisión (fin de fase 5)
 
-- [ ] Navegar todo el kanban, mover una tarjeta y bloquearla solo con teclado. `Space` → `→`: el primer anuncio ya dice la columna vecina (una sola pulsación).
-- [ ] Lector de pantalla (NVDA): el arrastre anuncia origen y destino.
-- [ ] Zoom del navegador al 200 %: sin scroll horizontal en la barra superior ni en el panel.
+- [x] Navegar todo el kanban, mover una tarjeta y bloquearla solo con teclado. `Space` → `→`: el primer anuncio ya dice la columna vecina (una sola pulsación).
+- [x] Lector de pantalla (NVDA): el arrastre anuncia origen y destino. (2026-10-26: Felipe siguió la guía de `docs/reviews/fase-5-detalle.md` §8, que cubre el arrastre del checklist del panel.)
+- [x] Zoom del navegador al 200 %: sin scroll horizontal en la barra superior ni en el panel.
 - [ ] Capturas del kit a 1024 y 1440 px.
-- [ ] Ninguna combinación de color fuera de la tabla de tokens (grep de `#` en `components/` debe dar cero).
+- [x] Ninguna combinación de color fuera de la tabla de tokens (grep de `#` en `components/` debe dar cero).
 
 Pendientes de la revisión #2 de la fase 5 ([[../reviews/fase-5-detalle]] §7), que solo se cierran con mi prueba manual con NVDA y zoom 200 % (guía en §8 de esa revisión; decidido 2026-10-26 dejarlos abiertos hasta entonces):
 
-- [ ] **D-1** (NVDA): los anuncios del checklist (`aria-live` de su `DndContext`) se oyen dentro del panel bajo `aria-modal`. Por construcción deberían (dnd-kit sin `container` deja la región viva dentro del diálogo); si no se oyen, el ajuste es `accessibility.container` con el `ref` del `tabpanel`.
-- [ ] **D-9** (zoom 200 %): cabecera del panel con tope de 55 vh (M-11: si la bitácora se queda sin sitio, bajar a 45 vh o pasar la cabecera menos la fila del ID al cuerpo con scroll) y barra superior sin scroll horizontal a 720 px CSS (M-12: `min-w-0` + `truncate` en el título, filtros que encojan o segunda fila bajo `lg`). Se decide con lo que mida.
+- [x] **D-1** (NVDA) — verificado por Felipe el 2026-10-26, sin cambios necesarios: los anuncios del checklist (`aria-live` de su `DndContext`) se oyen dentro del panel bajo `aria-modal`. Por construcción deberían (dnd-kit sin `container` deja la región viva dentro del diálogo); si no se oyen, el ajuste es `accessibility.container` con el `ref` del `tabpanel`.
+- [x] **D-9** (zoom 200 %) — verificado por Felipe el 2026-10-26, sin cambios necesarios: cabecera del panel con tope de 55 vh (M-11: si la bitácora se queda sin sitio, bajar a 45 vh o pasar la cabecera menos la fila del ID al cuerpo con scroll) y barra superior sin scroll horizontal a 720 px CSS (M-12: `min-w-0` + `truncate` en el título, filtros que encojan o segunda fila bajo `lg`). Se decide con lo que mida.
 
 ---
 
