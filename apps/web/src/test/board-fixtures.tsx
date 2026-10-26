@@ -116,11 +116,18 @@ export function renderBoard(
   path = '/p/siga',
   wipLimit = 3,
   cardsStatus = 200,
+  /** Slugs de otros proyectos activos (p. ej. para "Mover a otro proyecto"). */
+  otherProjects: string[] = [],
 ): BoardApi {
   const api: BoardApi = { cards: withPositions(initial), moves: [], created: [] };
   server.use(
     http.get(url('/me'), () => HttpResponse.json(ME)),
-    http.get(url('/projects'), () => HttpResponse.json([makeProject('siga', wipLimit)])),
+    http.get(url('/projects'), () =>
+      HttpResponse.json([
+        makeProject('siga', wipLimit),
+        ...otherProjects.map((p) => makeProject(p)),
+      ]),
+    ),
     http.get(url('/settings'), () => HttpResponse.json(SETTINGS)),
     http.get(url('/labels'), () => HttpResponse.json(LABELS)),
     http.get(url('/cards'), ({ request }) => {
@@ -133,8 +140,10 @@ export function renderBoard(
       const params = new URL(request.url).searchParams;
       const limit = Number(params.get('limit') ?? 100);
       const offset = Number(params.get('cursor') ?? 0);
-      const page = api.cards.slice(offset, offset + limit);
-      const next = offset + limit < api.cards.length ? String(offset + limit) : null;
+      // Como la API real, sin `archived=true` no devuelve las archivadas.
+      const active = api.cards.filter((c) => !c.archivedAt);
+      const page = active.slice(offset, offset + limit);
+      const next = offset + limit < active.length ? String(offset + limit) : null;
       return HttpResponse.json({ items: page, nextCursor: next });
     }),
     http.post(url('/cards/:ref/move'), async ({ request, params }) => {

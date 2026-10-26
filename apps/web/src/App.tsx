@@ -8,8 +8,11 @@ import { AppShell } from './components/layout/AppShell';
 import { ToastProvider } from './components/ui/Toast';
 import { BoardPage } from './pages/BoardPage';
 import { KitPage } from './pages/KitPage';
+import { LabelsPage } from './pages/LabelsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { TokensPage } from './pages/TokensPage';
 
 export function App({ queryClient }: { queryClient?: QueryClient }) {
   const [client] = useState(() => queryClient ?? createQueryClient());
@@ -32,23 +35,13 @@ export function App({ queryClient }: { queryClient?: QueryClient }) {
                 path="timeline"
                 element={<PlaceholderPage note="La línea de tiempo llega en la fase 9." />}
               />
-              <Route path="p/:slug" element={<BoardPage />} />
-              <Route
-                path="p/:slug/:ref"
-                element={<PlaceholderPage note="El detalle de tarjeta llega en la fase 5." />}
-              />
-              <Route
-                path="labels"
-                element={<PlaceholderPage note="Etiquetas llega en la fase 5." />}
-              />
-              <Route
-                path="tokens"
-                element={<PlaceholderPage note="Tokens llega en la fase 5." />}
-              />
-              <Route
-                path="settings"
-                element={<PlaceholderPage note="Ajustes llega en la fase 5." />}
-              />
+              <Route path="p/:slug" element={<BoardPage />}>
+                {/* El detalle es un panel sobre el tablero (§3): BoardPage lee `:ref` y lo dibuja. */}
+                <Route path=":ref" element={null} />
+              </Route>
+              <Route path="labels" element={<LabelsPage />} />
+              <Route path="tokens" element={<TokensPage />} />
+              <Route path="settings" element={<SettingsPage />} />
               {/* Solo en desarrollo (D-4): Vite sustituye DEV por false y saca KitPage del bundle. */}
               {import.meta.env.DEV && <Route path="_kit" element={<KitPage />} />}
               <Route path="*" element={<PlaceholderPage note="Esta página no existe." />} />

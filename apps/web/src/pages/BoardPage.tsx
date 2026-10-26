@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { CardStatus } from 'shared';
 import { useProjectCards, useProjects, useSettings } from '../api/queries';
 import { useRegisterNewCard } from '../app/NewCardContext';
 import { Board } from '../components/board/Board';
+import { CardPanel } from '../components/card/CardPanel';
 import { Button, Skeleton } from '../components/ui';
 import { ApiError } from '../api/client';
 import { BOARD_GRID_CLASS, parseFilters } from '../lib/board';
@@ -11,7 +12,10 @@ import { todayIn } from '../lib/dates';
 
 const DEFAULT_DONE_DAYS = 14;
 
-/** Kanban de un proyecto (`/p/:slug`, §4.1). Con `key` el estado local no pasa de un proyecto a otro. */
+/**
+ * Kanban de un proyecto (`/p/:slug`, §4.1) y, encima, el panel de detalle (`/p/:slug/:ref`, §4.2).
+ * Con `key` el estado local no pasa de un proyecto a otro.
+ */
 export function BoardPage() {
   const { slug = '' } = useParams();
   return <ProjectBoard key={slug} slug={slug} />;
@@ -20,25 +24,53 @@ export function BoardPage() {
 /** Carga las tarjetas y deja el resto al `Board`. */
 function ProjectBoard({ slug }: { slug: string }) {
   const [params] = useSearchParams();
+  const { ref = null } = useParams();
+  const navigate = useNavigate();
+  const { search } = useLocation();
   const cards = useProjectCards(slug);
   const projects = useProjects();
   const settings = useSettings();
   const [quickAddStatus, setQuickAddStatus] = useState<CardStatus | null>(null);
   // Un proyecto sin tarjetas muestra "Crea tu primera tarjeta" hasta que se pide la primera.
   const [startedEmpty, setStartedEmpty] = useState(false);
+  // Panel en modo creación (`n`, "Nueva tarjeta"). Con una tarjeta en la URL manda el detalle.
+  const [creating, setCreating] = useState(false);
   // Se fija al cargar la página: la ventana de Hecho no necesita reloj en vivo.
   const [nowMs] = useState(() => Date.now());
 
   const filters = useMemo(() => parseFilters(params), [params]);
   const project = projects.data?.find((p) => p.slug === slug);
 
-  // `n` y el botón "Nueva tarjeta" de la barra superior abren la tarjeta rápida de "Por hacer".
-  // TODO(fase 5): abrir el panel de detalle en modo creación (4.4) en lugar de la tarjeta rápida.
-  const openNewCard = useCallback(() => {
+  // `n` y el botón "Nueva tarjeta" de la barra superior abren el panel en modo creación (Plan 4.4).
+  const openNewCard = useCallback(() => setCreating(true), []);
+  useRegisterNewCard(openNewCard);
+  // El estado vacío del proyecto (§4.1) sí ofrece la tarjeta rápida de "Por hacer".
+  const openQuickAdd = useCallback(() => {
     setStartedEmpty(true);
     setQuickAddStatus('todo');
   }, []);
-  useRegisterNewCard(openNewCard);
+
+  // Cerrar el panel vuelve al tablero y conserva los filtros de la URL.
+  const closePanel = useCallback(() => {
+    setCreating(false);
+    if (ref) void navigate({ pathname: `/p/${slug}`, search });
+  }, [navigate, ref, search, slug]);
+  const showCard = useCallback(
+    (cardRef: string, projectSlug = slug) => {
+      setCreating(false);
+      void navigate({ pathname: `/p/${projectSlug}/${cardRef}`, search }, { replace: true });
+    },
+    [navigate, search, slug],
+  );
+  const panel = (ref !== null || creating) && (
+    <CardPanel
+      slug={slug}
+      cardRef={ref}
+      onClose={closePanel}
+      onCreated={showCard}
+      onProjectChanged={(projectSlug) => ref && showCard(ref, projectSlug)}
+    />
+  );
 
   if (cards.isPending || settings.isPending || projects.isPending) return <BoardSkeleton />;
   if (cards.isError) {
@@ -62,23 +94,27 @@ function ProjectBoard({ slug }: { slug: string }) {
     return (
       <div className="flex flex-col items-center gap-4 p-8 text-center">
         <p className="m-0 text-md text-fg">Crea tu primera tarjeta</p>
-        <Button onClick={openNewCard}>Nueva tarjeta</Button>
+        <Button onClick={openQuickAdd}>Nueva tarjeta</Button>
+        {panel}
       </div>
     );
   }
 
   return (
-    <Board
-      slug={slug}
-      cards={cards.data}
-      filters={filters}
-      wipLimit={project?.wipLimit ?? 0}
-      doneDaysVisible={settings.data?.doneDaysVisible ?? DEFAULT_DONE_DAYS}
-      today={todayIn(timezone)}
-      nowMs={nowMs}
-      quickAddStatus={quickAddStatus}
-      onQuickAddStatusChange={setQuickAddStatus}
-    />
+    <>
+      <Board
+        slug={slug}
+        cards={cards.data}
+        filters={filters}
+        wipLimit={project?.wipLimit ?? 0}
+        doneDaysVisible={settings.data?.doneDaysVisible ?? DEFAULT_DONE_DAYS}
+        today={todayIn(timezone)}
+        nowMs={nowMs}
+        quickAddStatus={quickAddStatus}
+        onQuickAddStatusChange={setQuickAddStatus}
+      />
+      {panel}
+    </>
   );
 }
 

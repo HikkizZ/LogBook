@@ -3,6 +3,7 @@ import type {
   CardDto,
   CardListDto,
   CardStatus,
+  CreateCardBody,
   LabelDto,
   MeDto,
   ProjectWithCountsDto,
@@ -18,6 +19,9 @@ export const queryKeys = {
   settings: ['settings'] as const,
   labels: ['labels'] as const,
   cards: (slug: string) => ['cards', slug] as const,
+  /** `GET /cards/:ref` (detalle del panel). Invalidar este prefijo refresca también la bitácora. */
+  card: (ref: string) => ['card', ref] as const,
+  cardLog: (ref: string) => ['card', ref, 'log'] as const,
 };
 
 /** `GET /me`: la UI sabe si está autenticada preguntando, no leyendo nada del navegador. */
@@ -111,7 +115,9 @@ export function useMoveCard(slug: string) {
             : undefined,
       });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, vars) => {
+      // El detalle del panel (estado, fechas y entrada `moved`) ya no es el que hay en caché.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.card(vars.ref) });
       // Con otro movimiento en vuelo se espera al último: refrescar antes pisaría su cambio optimista.
       if (queryClient.isMutating({ mutationKey: ['move-card'] }) > 1) return;
       void queryClient.invalidateQueries({ queryKey: key });
@@ -126,8 +132,8 @@ export function useMoveCard(slug: string) {
 export function useCreateCard(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ title, status }: { title: string; status: CardStatus }) =>
-      api.post<CardDto>('/cards', { project: slug, title, status }),
+    mutationFn: (vars: Omit<CreateCardBody, 'project'>) =>
+      api.post<CardDto>('/cards', { project: slug, ...vars }),
     onSuccess: async (card) => {
       // Un refetch en vuelo (p. ej. el de un `move`) traería una foto sin esta tarjeta y la pisaría.
       await queryClient.cancelQueries({ queryKey: queryKeys.cards(slug) });
