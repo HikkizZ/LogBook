@@ -192,13 +192,15 @@ Para modo oscuro después: mover los valores a `:root { ... }` y usar `@theme in
 
 Dos zonas verticales:
 
-**Cabecera** (fija): `T-42` mono + botón copiar · chip de estado · botón cerrar. Debajo, el título editable en línea (`--text-md`, clic para editar, `Enter` guarda). Fila de metadatos en dos columnas: Proyecto (selector con punto), Prioridad, Fecha inicio, Fecha límite, Etiquetas (multi-select con chips). Fila "Rama sugerida": `feat/T-42-slug` en mono con botón copiar.
+**Cabecera** (fija): `T-42` mono + botón copiar · chip de estado · botón cerrar. Debajo, el título editable en línea (`--text-md`, clic para editar, `Enter` guarda). Fila de metadatos en dos columnas: Proyecto (nombre con punto, **solo lectura**; se cambia desde `⋯` → Mover a otro proyecto, porque un `select` que mueve al cambiar es justo el "mover por accidente" que RF-28 no quiere; decidido 2026-10-26), Prioridad, Fecha inicio, Fecha límite, Etiquetas (multi-select con chips: un botón que abre un grupo de casillas nativas, ver §5). Las etiquetas se aplican de forma **optimista** en el selector y en el kanban (colores desde la caché de `labels`; la respuesta del `PATCH` normaliza), para que marcar dos o tres seguidas no pierda la primera (decidido 2026-10-26). Fila "Rama sugerida": `feat/T-42-slug` en mono con botón copiar.
 
 **Cuerpo** (scroll): pestañas **Bitácora** (por defecto) · **Descripción** · **Checklist** (`2/5`) · **GitHub** (v2, solo si el proyecto tiene repo).
 
-- *Bitácora*: lista cronológica ascendente (lo más nuevo abajo, como un chat) con fecha relativa ("hoy 14:32", "ayer", "mar 14 oct") y absoluta en tooltip. Entradas de sistema (`moved`, `commit`, `pr`) en `--color-fg-muted`, con icono pequeño, una línea. Entradas `blocked` con punto rojo. Al pie, fijo: textarea "Avancé… / quedó…" con `Ctrl+Enter` para guardar y un selector de fecha oculto tras "otra fecha". Toggle "Solo mis notas".
-- *Descripción*: markdown renderizado; clic en "Editar" cambia a textarea con vista previa al lado (no WYSIWYG).
-- *Checklist*: ítems con checkbox, texto editable en línea, arrastre para ordenar, input al pie para agregar.
+- *Bitácora*: lista cronológica ascendente (lo más nuevo abajo, como un chat) con fecha relativa ("hoy 14:32", "ayer", "mar 14 oct") y absoluta en tooltip. Entradas de sistema (`moved`, `commit`, `pr`) en `--color-fg-muted`, con icono pequeño, una línea; no se editan, pero sí llevan "Borrar" con la misma confirmación que las notas (RF-32): un arrastre equivocado deja un `moved` que ensucia la bitácora y el `/summary` (decidido 2026-10-26). Entradas `blocked` con punto rojo y el texto "Bloqueado". Al pie, fijo: textarea "Avancé… / quedó…" con `Ctrl+Enter` para guardar y un selector de **fecha y hora** (`datetime-local`, interpretado en la zona de Ajustes) oculto tras "Otra fecha": la bitácora ordena por `occurredAt` y "ayer a las 16:00" es la nota típica de la mañana siguiente; una fecha sola la pondría a medianoche (decidido 2026-10-26). Toggle "Solo mis notas".
+- *Descripción*: markdown renderizado; clic en "Editar" cambia a textarea con vista previa **debajo** (no WYSIWYG): 480 − 32 de padding = 448 px, y dos columnas de ~200 px no sirven ni para el markdown ni para el textarea (decidido 2026-10-26).
+- *Checklist*: ítems con checkbox, texto editable en línea, arrastre para ordenar, input al pie para agregar. Quitar un ítem **no pide confirmación**: es una línea corta y se vuelve a escribir; la nota de bitácora sí es texto largo y sí confirma (decidido 2026-10-26).
+
+`Esc` dentro del panel va en **dos pasos** cuando hay un borrador: si el foco está en un campo de texto con contenido (nota de bitácora, formulario de creación), el primer `Esc` solo saca el foco del campo y el segundo cierra el panel; sin diálogo "¿Descartar?". Con el campo vacío, un `Esc` cierra. Es el mismo patrón de los editores de código y evita perder tres párrafos por un `Esc` reflejo (decidido 2026-10-26).
 
 Acciones secundarias en un menú `⋯`: Mover a otro proyecto, Archivar.
 
@@ -226,7 +228,7 @@ Paleta de comandos centrada (560 px): input arriba, resultados en dos grupos (Ta
 
 ### 4.7 Tokens (`/tokens`)
 
-Tabla: nombre, prefijo (mono), creado, último uso, **vence**, botón "Revocar" (rojo, con confirmación). La columna "Vence" lleva fecha absoluta y, según cuánto falte, un chip al lado (RF-61): **≤ 14 días** → chip ámbar `--color-warning` sobre `--color-warning-soft` con texto "vence en N días" (icono de reloj; el color nunca va solo); **vencido** → chip rojo "vencido" y la fila en opacidad 60 % como las archivadas; **revocado** → chip gris "revocado", misma opacidad. Encima de la tabla, si algún token activo vence en ≤ 14 días, una franja de aviso (fondo `--color-warning-soft`, borde izquierdo 3 px `--color-warning`): "El token *Claude Code PC* vence el 18 ene. Crea uno nuevo y actualiza el `env` de la skill; el viejo se puede revocar después." Botón "Nuevo token" → diálogo con nombre → pantalla que muestra el token **una vez** en un bloque mono con botón copiar, debajo "Vence el <fecha> (90 días)" y el aviso "No se vuelve a mostrar". No hay botón "renovar": renovar es crear uno nuevo.
+Tabla: nombre, prefijo (mono), creado, último uso, **vence**, botón "Revocar" (rojo, con confirmación). La columna "Vence" lleva fecha absoluta y, según cuánto falte, un chip al lado (RF-61): **≤ 14 días** → chip ámbar `--color-warning` sobre `--color-warning-soft` con texto "vence en N días" (icono de reloj; el color nunca va solo); **vencido** → chip rojo "vencido" y la fila en opacidad 60 % como las archivadas; **revocado** → chip gris "revocado", misma opacidad. Encima de la tabla, si algún token activo vence en ≤ 14 días, una franja de aviso (fondo `--color-warning-soft`, borde izquierdo 3 px `--color-warning`): "El token *Claude Code PC* vence el 18 ene. Crea uno nuevo y actualiza el `env` de la skill; el viejo se puede revocar después." Botón "Nuevo token" → diálogo con nombre → pantalla que muestra el token **una vez** en un bloque mono con botón copiar, debajo "Vence el <fecha> (90 días)" y el aviso "No se vuelve a mostrar". En esa pantalla el foco inicial va en **"Copiar"** y, tras copiar con éxito, pasa a "Listo": si cayera en "Listo", un segundo `Enter` por reflejo cerraría el diálogo con el token sin copiar; sin confirmación extra al cerrar (decidido 2026-10-26). No hay botón "renovar": renovar es crear uno nuevo.
 
 ### 4.8 Etiquetas, Ajustes, Login
 
@@ -246,7 +248,7 @@ Componentes en `apps/web/src/components/ui/`. Cada uno tiene todos los estados d
 | `Button` secundario | surface, borde border-strong, texto fg | surface-hover | anillo | borde primary | ídem |
 | `Button` destructivo | texto danger, borde danger | fondo danger-soft | anillo (color danger) | — | ídem |
 | `Input` / `Textarea` | surface, borde border-strong, 32 px | borde fg-muted | borde primary + anillo | — | fondo bg, texto muted |
-| `Select` | como Input, chevron a la derecha | ídem | ídem | lista nativa del navegador (v1, sin resaltado propio); el multi-select de etiquetas de la fase 5 es propio y lleva el ítem resaltado primary-soft (decidido 2026-10-22) | ídem |
+| `Select` | como Input, chevron a la derecha | ídem | ídem | lista nativa del navegador (v1, sin resaltado propio); el multi-select de etiquetas de la fase 5 es propio: un botón con chips que abre un grupo de **casillas nativas** (`checkbox` da teclado, estado y anuncio gratis; un `listbox` propio sería más código y peor en NVDA), y la casilla marcada lleva primary-soft (decidido 2026-10-22; casillas en vez de listbox, decidido 2026-10-26) | ídem |
 | `Checkbox` | 16 px, borde border-strong, radio 4 | borde primary | anillo | fondo primary, check blanco | opacidad 50 % |
 | `Chip` (estado, etiqueta, proyecto) | texto acento sobre soft, 20 px alto, radio sm, xs | — | — | — | — |
 | `CardTile` | §4.1 | sombra lift ligera, borde fg-muted | anillo + borde primary | arrastrando: sombra lift, rotación 1°, opacidad 90 %; placeholder: contorno discontinuo border-strong | archivada: opacidad 60 % |
@@ -295,7 +297,7 @@ Carga: skeletons grises (`surface-hover`) con animación suave; nunca spinners d
 | `m` | menú "Mover a…" sobre la tarjeta enfocada (alternativa al arrastre) |
 | `e` | editar título (en el panel) |
 | `Ctrl+Enter` | guardar entrada de bitácora / título |
-| `Esc` | cerrar panel, diálogo o cancelar edición |
+| `Esc` | cerrar panel, diálogo o cancelar edición. En el panel, si el foco está en un campo de texto con contenido, el primer `Esc` solo sale del campo y el segundo cierra (§4.2, decidido 2026-10-26) |
 | `?` | mostrar esta tabla |
 
 Los atajos de una letra no se activan cuando el foco está en un input.
@@ -309,6 +311,11 @@ Mi teclado es **latinoamericano**: `[` se escribe con AltGr, que en Windows lleg
 - [ ] Zoom del navegador al 200 %: sin scroll horizontal en la barra superior ni en el panel.
 - [ ] Capturas del kit a 1024 y 1440 px.
 - [ ] Ninguna combinación de color fuera de la tabla de tokens (grep de `#` en `components/` debe dar cero).
+
+Pendientes de la revisión #2 de la fase 5 ([[../reviews/fase-5-detalle]] §7), que solo se cierran con mi prueba manual con NVDA y zoom 200 % (guía en §8 de esa revisión; decidido 2026-10-26 dejarlos abiertos hasta entonces):
+
+- [ ] **D-1** (NVDA): los anuncios del checklist (`aria-live` de su `DndContext`) se oyen dentro del panel bajo `aria-modal`. Por construcción deberían (dnd-kit sin `container` deja la región viva dentro del diálogo); si no se oyen, el ajuste es `accessibility.container` con el `ref` del `tabpanel`.
+- [ ] **D-9** (zoom 200 %): cabecera del panel con tope de 55 vh (M-11: si la bitácora se queda sin sitio, bajar a 45 vh o pasar la cabecera menos la fila del ID al cuerpo con scroll) y barra superior sin scroll horizontal a 720 px CSS (M-12: `min-w-0` + `truncate` en el título, filtros que encojan o segunda fila bajo `lg`). Se decide con lo que mida.
 
 ---
 
