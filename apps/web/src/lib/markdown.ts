@@ -62,5 +62,7 @@ export function renderMarkdown(source: string): string {
     ALLOWED_TAGS,
     ALLOWED_ATTR: ['href', 'title'],
     ALLOW_DATA_ATTR: false,
+    // RS-12, perfil estricto: ni `ftp:`, `tel:`, `sms:` ni `xmpp:` (el de fábrica de DOMPurify los admite).
+    ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i,
   });
 }

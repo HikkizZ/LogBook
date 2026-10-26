@@ -188,6 +188,22 @@ describe('Tokens (RF-61, 4.7)', () => {
     expect(screen.queryByTestId('new-token')).toBeNull();
   });
 
+  it('D2026-10-26 #3 (I-4): el foco inicial del token nuevo está en "Copiar"; tras copiar pasa a "Listo"', async () => {
+    fakeTokensApi([]);
+    renderAdmin(<TokensPage />);
+    const user = userEvent.setup();
+    await screen.findByText('Aún no hay tokens.');
+
+    await user.click(screen.getByRole('button', { name: /Nuevo token/ }));
+    await user.type(screen.getByLabelText('Nombre'), 'X{Enter}');
+    await screen.findByTestId('new-token');
+
+    expect(screen.getByRole('button', { name: 'Copiar' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(await screen.findByText('Copiado')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Listo' })).toHaveFocus();
+  });
+
   it('RF-61: copiar manda el token al portapapeles', async () => {
     fakeTokensApi([]);
     renderAdmin(<TokensPage />);

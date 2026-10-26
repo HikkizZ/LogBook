@@ -42,6 +42,15 @@ describe('renderMarkdown (RF-22, RS-12)', () => {
     }
   });
 
+  it('D2026-10-26 #5 (M-7): solo http(s) y mailto generan enlace; ftp, tel, sms y xmpp no', () => {
+    const root = parse(
+      '[a](ftp://a.example/f) [b](tel:123) [c](sms:123) [d](xmpp:u@a.example) [e](https://a.example) [f](mailto:u@a.example) [g](javascript:alert(1))',
+    );
+
+    const hrefs = Array.from(root.querySelectorAll('a[href]')).map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(['https://a.example', 'mailto:u@a.example']);
+  });
+
   it('RF-22: soporta listas, código, enlaces, negrita y encabezados', () => {
     const root = parse('# T\n\n- a\n- b\n\n`c` **d**\n\n```\nbloque\n```');
 

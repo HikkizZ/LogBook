@@ -85,7 +85,7 @@ export function LogTab({ cardRef }: { cardRef: string }) {
             {entries.map((entry) => (
               <li key={entry.id} className="m-0">
                 {isSystem(entry) ? (
-                  <SystemEntry entry={entry} timeZone={timeZone} />
+                  <SystemEntry entry={entry} timeZone={timeZone} onDelete={deleteEntry} />
                 ) : (
                   <NoteEntry entry={entry} timeZone={timeZone} onDelete={deleteEntry} />
                 )}
@@ -103,18 +103,73 @@ function EntryTime({ iso, timeZone }: { iso: string; timeZone: string }) {
   return (
     <Tooltip label={formatAbsolute(iso, timeZone)} describe={false}>
       {(trigger) => (
-        <time dateTime={iso} tabIndex={0} className="text-xs text-fg-muted" {...trigger}>
+        <time dateTime={iso} className="text-xs text-fg-muted" {...trigger}>
           {formatLogTime(iso, timeZone)}
+          {/* La fecha absoluta para el lector de pantalla, sin añadir una parada de Tab por entrada (M-3). */}
+          <span className="sr-only">, {formatAbsolute(iso, timeZone)}</span>
         </time>
       )}
     </Tooltip>
   );
 }
 
-/** `moved`, `commit` y `pr`: una línea atenuada con icono (§4.2). */
-function SystemEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }) {
+/** Los botones de una entrada aparecen al pasar el ratón o al enfocar alguno (siguen en el orden de Tab). */
+const REVEAL_ON_HOVER = cn(
+  'flex gap-1 opacity-0 transition-opacity duration-120',
+  'group-focus-within:opacity-100 group-hover:opacity-100',
+);
+
+/** "Borrar" con la confirmación de RF-32; lo comparten las notas y las entradas de sistema. */
+function DeleteEntryButton({
+  entry,
+  when,
+  onDelete,
+}: {
+  entry: LogEntryDto;
+  when: string;
+  onDelete: (entry: LogEntryDto) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
   return (
-    <p className="m-0 flex items-center gap-2 text-sm text-fg-muted">
+    <>
+      <Button
+        variant="destructive"
+        aria-label={`Borrar entrada de ${when}`}
+        onClick={() => setConfirming(true)}
+      >
+        Borrar
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        title="¿Borrar esta entrada?"
+        confirmLabel="Borrar"
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          onDelete(entry);
+        }}
+      >
+        Se quita de la bitácora de {entry.cardRef}. No se puede deshacer.
+      </ConfirmDialog>
+    </>
+  );
+}
+
+/**
+ * `moved`, `commit` y `pr`: una línea atenuada con icono (§4.2). No se editan, pero se pueden borrar (RF-32):
+ * un arrastre equivocado deja un `moved` que ensucia la bitácora.
+ */
+function SystemEntry({
+  entry,
+  timeZone,
+  onDelete,
+}: {
+  entry: LogEntryDto;
+  timeZone: string;
+  onDelete: (entry: LogEntryDto) => void;
+}) {
+  return (
+    <p className="group m-0 flex items-center gap-2 text-sm text-fg-muted">
       {entry.kind === 'moved' ? (
         <ArrowRightIcon width={12} height={12} className="shrink-0" />
       ) : (
@@ -122,14 +177,18 @@ function SystemEntry({ entry, timeZone }: { entry: LogEntryDto; timeZone: string
       )}
       <span className="min-w-0 flex-1 break-words">{entry.body}</span>
       <EntryTime iso={entry.occurredAt} timeZone={timeZone} />
+      <span className={REVEAL_ON_HOVER}>
+        <DeleteEntryButton
+          entry={entry}
+          when={formatLogTime(entry.occurredAt, timeZone)}
+          onDelete={onDelete}
+        />
+      </span>
     </p>
   );
 }
 
-/**
- * `note` y `blocked`: se pueden editar y borrar (RF-32).
- * TODO(diseño): RF-32 permite borrar también las de sistema; la UI no lo ofrece (el plan habla de "notas propias").
- */
+/** `note` y `blocked`: se pueden editar y borrar (RF-32). */
 function NoteEntry({
   entry,
   timeZone,
@@ -142,7 +201,6 @@ function NoteEntry({
   const edit = useEditLogEntry();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.body);
-  const [confirming, setConfirming] = useState(false);
 
   const save = () => {
     const body = draft.trim();
@@ -177,12 +235,7 @@ function NoteEntry({
         )}
         <EntryTime iso={entry.occurredAt} timeZone={timeZone} />
         {!editing && (
-          <span
-            className={cn(
-              'ml-auto flex gap-1 opacity-0 transition-opacity duration-120',
-              'group-focus-within:opacity-100 group-hover:opacity-100',
-            )}
-          >
+          <span className={cn('ml-auto', REVEAL_ON_HOVER)}>
             <Button
               variant="secondary"
               aria-label={`Editar entrada de ${when}`}
@@ -193,13 +246,7 @@ function NoteEntry({
             >
               Editar
             </Button>
-            <Button
-              variant="destructive"
-              aria-label={`Borrar entrada de ${when}`}
-              onClick={() => setConfirming(true)}
-            >
-              Borrar
-            </Button>
+            <DeleteEntryButton entry={entry} when={when} onDelete={onDelete} />
           </span>
         )}
       </div>
@@ -225,18 +272,6 @@ function NoteEntry({
       ) : (
         <Markdown source={entry.body} />
       )}
-      <ConfirmDialog
-        open={confirming}
-        title="¿Borrar esta entrada?"
-        confirmLabel="Borrar"
-        onCancel={() => setConfirming(false)}
-        onConfirm={() => {
-          setConfirming(false);
-          onDelete(entry);
-        }}
-      >
-        Se quita de la bitácora de {entry.cardRef}. No se puede deshacer.
-      </ConfirmDialog>
     </div>
   );
 }

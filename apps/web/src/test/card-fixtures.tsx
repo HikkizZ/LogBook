@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import type { CardDto, ChecklistItemDto, LogEntryDto, LogKind, UpdateCardBody } from 'shared';
 import { LABELS, renderBoard, url, type BoardApi } from './board-fixtures';
 import { server } from './server';
@@ -38,6 +38,8 @@ export interface CardFakeApi extends BoardApi {
   checklist: ChecklistItemDto[];
   /** Si se define, el `PATCH /cards/:ref` responde este error. */
   patchError?: { status: number; message: string };
+  /** Si se define, el `PATCH /cards/:ref` responde tras estos milisegundos (la API real tarda 200-300 ms). */
+  patchDelay?: number;
 }
 
 interface Options {
@@ -93,6 +95,7 @@ export function renderPanel(initial: CardDto[], options: Options = {}): CardFake
     http.patch(url('/cards/:ref'), async ({ params, request }) => {
       const body = (await request.json()) as UpdateCardBody;
       state.patches.push({ ref: String(params.ref), body });
+      if (state.patchDelay) await delay(state.patchDelay);
       if (state.patchError) {
         return HttpResponse.json(
           { error: { code: 'CONFLICT', message: state.patchError.message } },

@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { COLOR_KEY_CHIP_CLASS } from '../../lib/colors';
 import { makeCard } from '../../test/board-fixtures';
 import { renderPanel } from '../../test/card-fixtures';
 
@@ -359,5 +360,74 @@ describe('panel en modo creación (Plan 4.4)', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(button).toHaveFocus();
+  });
+
+  it('D2026-10-26 #2 (I-1): dos clics rápidos en el selector de etiquetas no pierden el primero', async () => {
+    const user = userEvent.setup();
+    const api = renderPanel([CARD()]);
+    api.patchDelay = 100;
+    const dialog = await openWithEnter(user);
+
+    await user.click(within(dialog).getByRole('button', { name: /Editar etiquetas/ }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'feature' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'bug' }));
+
+    await waitFor(() => expect(api.patches).toHaveLength(2));
+    expect(api.patches[1]?.body).toEqual({ labels: ['feature', 'bug'] });
+    await waitFor(() =>
+      expect(api.cards[0]?.labels.map((l) => l.name)).toEqual(['feature', 'bug']),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(within(tile('T-1') as HTMLElement).getByText('feature')).toBeInTheDocument();
+    expect(within(tile('T-1') as HTMLElement).getByText('bug')).toBeInTheDocument();
+    expect(within(dialog).getAllByText('feature').length).toBeGreaterThan(0);
+    expect(within(dialog).getAllByText('bug').length).toBeGreaterThan(0);
+  });
+
+  it('D2026-10-26 #2 (I-1): la etiqueta se ve al instante en el kanban, con el color de la caché de labels', async () => {
+    const user = userEvent.setup();
+    const api = renderPanel([CARD()]);
+    api.patchDelay = 400;
+    const dialog = await openWithEnter(user);
+
+    await user.click(within(dialog).getByRole('button', { name: /Editar etiquetas/ }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'feature' }));
+
+    const chip = within(tile('T-1') as HTMLElement).getByText('feature');
+    expect(api.cards[0]?.labels).toEqual([]);
+    expect(chip).toHaveClass(...COLOR_KEY_CHIP_CLASS.violeta.split(' '));
+  });
+
+  it('D2026-10-26 #2 (I-1): si la API rechaza las etiquetas, vuelven a como estaban y se avisa', async () => {
+    const user = userEvent.setup();
+    const api = renderPanel([CARD()]);
+    api.patchError = { status: 400, message: 'etiqueta inválida' };
+    api.patchDelay = 50;
+    const dialog = await openWithEnter(user);
+
+    await user.click(within(dialog).getByRole('button', { name: /Editar etiquetas/ }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'feature' }));
+
+    expect(await screen.findByText(/etiqueta inválida/)).toBeInTheDocument();
+    expect(within(tile('T-1') as HTMLElement).queryByText('feature')).toBeNull();
+    expect(within(dialog).getByText('Sin etiquetas')).toBeInTheDocument();
+  });
+
+  it('D2026-10-26 #2 (I-3): en "Nueva tarjeta", con título escrito el primer Esc sale del campo y el segundo cierra', async () => {
+    const user = userEvent.setup();
+    renderPanel([CARD()]);
+    await screen.findByText('Migrar facturas');
+    await user.click(screen.getByRole('button', { name: 'Nueva tarjeta' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nueva tarjeta' });
+    const title = within(dialog).getByRole('textbox', { name: 'Título' });
+
+    await user.type(title, 'Borrador{Escape}');
+
+    expect(screen.getByRole('dialog', { name: 'Nueva tarjeta' })).toBeInTheDocument();
+    expect(title).not.toHaveFocus();
+    expect(title).toHaveValue('Borrador');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

@@ -149,8 +149,8 @@ describe('pestaña Bitácora (5.2)', () => {
     await waitFor(() => expect(within(dialog).queryByText('Primera nota')).not.toBeInTheDocument());
   });
 
-  it('M-3 §6.1: los botones de cada nota llevan su hora y la hora tiene la fecha absoluta al enfocarla', async () => {
-    const { dialog } = await openLog([
+  it('D2026-10-26 #6 (M-3): la hora no es una parada de Tab; la fecha absoluta va como texto para lectores y en el tooltip', async () => {
+    const { user, dialog } = await openLog([
       makeEntry('note', { body: 'Primera nota', occurredAt: new Date().toISOString() }),
     ]);
     await within(dialog).findByText('Primera nota');
@@ -163,8 +163,11 @@ describe('pestaña Bitácora (5.2)', () => {
     ).toBeInTheDocument();
 
     const time = dialog.querySelector('time') as HTMLElement;
-    time.focus();
-    expect(time).toHaveFocus();
+    expect(time).not.toHaveAttribute('tabindex');
+    const absolute = time.querySelector('.sr-only');
+    expect(absolute).toHaveTextContent(/\d{4}/);
+
+    await user.hover(time);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/\d{4}/);
   });
 
@@ -187,13 +190,61 @@ describe('pestaña Bitácora (5.2)', () => {
     ).toHaveFocus();
   });
 
-  it('RF-32: las entradas de sistema no se editan ni se borran desde la UI', async () => {
-    const { dialog } = await openLog([makeEntry('moved', { body: 'Por hacer → En curso' })]);
+  it('D2026-10-26 #4 (RF-32): las entradas de sistema se pueden borrar (no editar), con la misma confirmación', async () => {
+    const { user, api, dialog } = await openLog([
+      makeEntry('moved', { body: 'Por hacer → En curso' }),
+      makeEntry('commit', { body: 'abc123 arregla' }),
+      makeEntry('pr', { body: 'PR #4' }),
+    ]);
     await within(dialog).findByText('Por hacer → En curso');
 
-    expect(
-      within(dialog).queryByRole('button', { name: /Editar entrada|Borrar entrada/ }),
-    ).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: /Editar entrada/ })).toBeNull();
+    const buttons = within(dialog).getAllByRole('button', { name: /^Borrar entrada de / });
+    expect(buttons).toHaveLength(3);
+    const id = api.log[0]?.id;
+
+    await user.click(buttons[0] as HTMLElement);
+    const confirm = await screen.findByRole('dialog', { name: '¿Borrar esta entrada?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
+    expect(api.logDeletes).toEqual([]);
+
+    await user.click(buttons[0] as HTMLElement);
+    await user.click(
+      within(await screen.findByRole('dialog', { name: '¿Borrar esta entrada?' })).getByRole(
+        'button',
+        { name: 'Borrar' },
+      ),
+    );
+
+    await waitFor(() => expect(api.logDeletes).toEqual([id]));
+    await waitFor(() =>
+      expect(within(dialog).queryByText('Por hacer → En curso')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('D2026-10-26 #2 (I-3): con texto en el cuadro de la bitácora, el primer Esc sale del campo y conserva el borrador; el segundo cierra', async () => {
+    const { user, dialog } = await openLog();
+    await within(dialog).findByText('Primera nota');
+    const box = within(dialog).getByRole('textbox', { name: 'Nueva entrada de bitácora' });
+
+    await user.type(box, 'hola{Escape}');
+
+    expect(screen.getByRole('dialog', { name: 'Migrar facturas' })).toBeInTheDocument();
+    expect(box).not.toHaveFocus();
+    expect(box).toHaveValue('hola');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('D2026-10-26 #2 (I-3): con el cuadro vacío, un solo Esc cierra el panel', async () => {
+    const { user, dialog } = await openLog();
+    await within(dialog).findByText('Primera nota');
+    within(dialog).getByRole('textbox', { name: 'Nueva entrada de bitácora' }).focus();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('RS-12: el cuerpo de una nota se pinta sanitizado (sin scripts ni onclick)', async () => {

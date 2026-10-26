@@ -4,6 +4,7 @@ import type {
   CardDetailDto,
   CardDto,
   ChecklistItemDto,
+  LabelDto,
   LogEntryDto,
   UpdateCardBody,
   UpdateChecklistItemBody,
@@ -184,8 +185,10 @@ export function useDeleteLogEntry() {
 // ---------------------------------------------------------------------------------------------
 // Edición de la tarjeta
 
-/** Campos que se pintan al instante; `labels` y `project` esperan a la respuesta (necesitan colores y destino). */
+/** Campos que se pintan al instante; `project` espera a la respuesta (necesita el destino). */
 const OPTIMISTIC_FIELDS = ['title', 'description', 'priority', 'startDate', 'dueDate'] as const;
+
+const updateCardKey = (ref: string) => ['updateCard', ref] as const;
 
 /**
  * `PATCH /cards/:ref` (RF-21, RF-28): los campos simples se ven al instante en el panel y en el kanban y se
@@ -195,6 +198,7 @@ export function useUpdateCard(ref: string) {
   const qc = useQueryClient();
   const fail = useErrorToast();
   return useMutation({
+    mutationKey: updateCardKey(ref),
     mutationFn: (patch: UpdateCardBody) => api.patch<CardDto>(`/cards/${ref}`, patch),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: queryKeys.card(ref), exact: true });
@@ -202,6 +206,15 @@ export function useUpdateCard(ref: string) {
       const simple: Partial<CardDto> = {};
       for (const field of OPTIMISTIC_FIELDS) {
         if (patch[field] !== undefined) Object.assign(simple, { [field]: patch[field] });
+      }
+      if (patch.labels !== undefined) {
+        // Los colores salen de la caché de `labels`; la etiqueta que ya no figura conserva el suyo, o gris.
+        const known = new Map<string, string>(
+          snap.detail?.labels.map((l) => [l.name, l.color]) ?? [],
+        );
+        for (const l of qc.getQueryData<LabelDto[]>(queryKeys.labels) ?? [])
+          known.set(l.name, l.color);
+        simple.labels = patch.labels.map((name) => ({ name, color: known.get(name) ?? 'gris' }));
       }
       if (snap.slug && Object.keys(simple).length > 0) {
         qc.setQueryData<CardDetailDto>(queryKeys.card(ref), (old) => old && mergeCard(old, simple));
@@ -213,7 +226,13 @@ export function useUpdateCard(ref: string) {
       if (snap) restore(qc, ref, snap);
       fail('No se pudo guardar el cambio')(error);
     },
-    onSuccess: (card, patch, snap) => {
+    onSuccess: (response, patch, snap) => {
+      // Con otro cambio en vuelo (dos clics rápidos en las etiquetas) esta respuesta ya está vieja: se
+      // conserva lo que se ve y manda la del último.
+      const othersInFlight = qc.isMutating({ mutationKey: updateCardKey(ref) }) > 1;
+      const inFlightLabels = qc.getQueryData<CardDetailDto>(queryKeys.card(ref))?.labels;
+      const card =
+        othersInFlight && inFlightLabels ? { ...response, labels: inFlightLabels } : response;
       if (patch.project && snap.slug && card.project !== snap.slug) {
         // Cambió de proyecto: sale del tablero de origen y entra (al final) en el de destino.
         patchBoardCard(qc, snap.slug, ref, () => null);
@@ -227,7 +246,7 @@ export function useUpdateCard(ref: string) {
         syncCard(qc, card);
       }
       // La rama sugerida (RF-29) depende del título y de la etiqueta `bug`: no viene en `Card`.
-      if (patch.title !== undefined || patch.labels !== undefined) {
+      if (!othersInFlight && (patch.title !== undefined || patch.labels !== undefined)) {
         void qc.invalidateQueries({ queryKey: queryKeys.card(ref), exact: true });
       }
     },

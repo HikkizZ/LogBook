@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createToken, tokensKey, type CreatedTokenDto } from '../../api/admin-queries';
 import { Button, Dialog, Input } from '../ui';
@@ -14,6 +14,7 @@ export function NewTokenDialog({ onClose, timeZone }: { onClose: () => void; tim
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<(CreatedTokenDto & { days: number }) | null>(null);
+  const doneRef = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null);
 
   const close = () => {
@@ -49,14 +50,22 @@ export function NewTokenDialog({ onClose, timeZone }: { onClose: () => void; tim
     try {
       await navigator.clipboard.writeText(created.token);
       setCopied('ok');
+      doneRef.current?.focus();
     } catch {
       setCopied('fail');
     }
   };
 
+  // `key`: al pasar de formulario a token se monta otro `Dialog`, y con él el foco inicial en "Copiar".
   if (created) {
     return (
-      <Dialog open onClose={close} title="Token creado" widthClass="max-w-dialog-wide">
+      <Dialog
+        key="created"
+        open
+        onClose={close}
+        title="Token creado"
+        widthClass="max-w-dialog-wide"
+      >
         <div className="flex flex-col gap-3">
           <p className="m-0 text-fg-muted">
             Copia el token de <strong className="text-fg">{created.name}</strong> ahora. No se
@@ -76,10 +85,10 @@ export function NewTokenDialog({ onClose, timeZone }: { onClose: () => void; tim
             {copied === 'fail' && 'No se pudo copiar; selecciona el texto y cópialo a mano'}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => void copy()}>
+            <Button variant="secondary" data-autofocus onClick={() => void copy()}>
               Copiar
             </Button>
-            <Button data-autofocus onClick={close}>
+            <Button ref={doneRef} onClick={close}>
               Listo
             </Button>
           </div>
@@ -89,7 +98,7 @@ export function NewTokenDialog({ onClose, timeZone }: { onClose: () => void; tim
   }
 
   return (
-    <Dialog open onClose={close} title="Nuevo token">
+    <Dialog key="form" open onClose={close} title="Nuevo token">
       <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <label htmlFor="token-name">Nombre</label>

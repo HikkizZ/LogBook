@@ -6,6 +6,8 @@ import { CardDetail } from './CardDetail';
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+const TEXT_INPUT_TYPES = ['text', 'search', 'email', 'url', 'textarea'];
+
 interface CardPanelProps {
   slug: string;
   /** Tarjeta abierta (`T-42`), o `null` para el modo creación. */
@@ -55,10 +57,23 @@ export function CardPanel({ slug, cardRef, onClose, onCreated, onProjectChanged 
     if (panel && !panel.contains(document.activeElement)) panel.focus();
   }, [cardRef]);
 
-  // `Esc` cierra. Los diálogos, menús y editores que usan `Esc` para sí lo detienen antes de llegar aquí.
+  // `Esc` cierra (en dos pasos si hay un borrador, I-3). Los diálogos, menús y editores que usan `Esc` para sí lo detienen antes de llegar aquí.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape' && !e.defaultPrevented) onClose();
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      // Dos pasos: un campo de texto con contenido solo pierde el foco (el borrador se conserva); el
+      // siguiente `Esc`, ya fuera del campo, cierra el panel.
+      const field = e.target;
+      if (
+        (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) &&
+        TEXT_INPUT_TYPES.includes(field.type) &&
+        field.value !== '' &&
+        panelRef.current?.contains(field)
+      ) {
+        field.blur();
+        return;
+      }
+      onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
