@@ -41,3 +41,5 @@ networks:
   web:
     external: true
   logbook_internal:
+    # Sin salida a internet: Postgres solo habla con la app (revisión fase 8, B-1).
+    internal: true
