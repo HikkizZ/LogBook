@@ -12,7 +12,9 @@ import { LabelsPage } from './pages/LabelsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { TodayPage } from './pages/TodayPage';
 import { TokensPage } from './pages/TokensPage';
+import { WeekPage } from './pages/WeekPage';
 
 export function App({ queryClient }: { queryClient?: QueryClient }) {
   const [client] = useState(() => queryClient ?? createQueryClient());
@@ -26,11 +28,8 @@ export function App({ queryClient }: { queryClient?: QueryClient }) {
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/today" replace />} />
-              <Route path="today" element={<PlaceholderPage note="Mi día llega en la fase 6." />} />
-              <Route
-                path="week"
-                element={<PlaceholderPage note="Mi semana llega en la fase 6." />}
-              />
+              <Route path="today" element={<TodayPage />} />
+              <Route path="week" element={<WeekPage />} />
               <Route
                 path="timeline"
                 element={<PlaceholderPage note="La línea de tiempo llega en la fase 9." />}

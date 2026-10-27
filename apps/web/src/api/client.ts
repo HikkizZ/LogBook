@@ -50,10 +50,14 @@ interface RequestOptions {
   body?: unknown;
   /** `POST /auth/login`: un 401 es "contraseña incorrecta", no una sesión vencida. */
   skipUnauthorizedHandler?: boolean;
+  /** La respuesta es texto (p. ej. `GET /summary?format=md`), no JSON. */
+  text?: boolean;
 }
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = {
+    Accept: options.text ? 'text/markdown' : 'application/json',
+  };
   if (MUTATING.has(method)) headers['X-Logbook-CSRF'] = '1';
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
@@ -71,6 +75,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
 
   if (res.ok) {
     sessionActive = !path.startsWith('/auth/logout');
+    if (options.text) return (await res.text()) as T;
     return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
@@ -104,6 +109,7 @@ async function readError(res: Response): Promise<ApiError> {
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
+  getText: (path: string) => request<string>('GET', path, { text: true }),
   post: <T>(
     path: string,
     body?: unknown,
