@@ -101,3 +101,14 @@ LOGBOOK_TOKEN=lb_... bash scripts/smoke.sh
 | `pnpm build`     | API (`tsc`) y web (`vite build`)      |
 | `pnpm db:up`     | Levanta los Postgres de desarrollo    |
 | `pnpm db:down`   | Los detiene (conserva el volumen dev) |
+
+## Despliegue
+
+Una sola imagen (`Dockerfile`) con la API y la web compilada, que Express sirve desde `WEB_DIST_DIR`. `docker-compose.yml` levanta `logbook` y `db` (Postgres 18) sin publicar puertos; la red `web` debe existir (`docker network create web`) y los datos van en `/srv/data/logbook/postgres`.
+
+```
+cp .env.example .env     # chmod 600; rellenar los valores
+docker compose up -d --build
+```
+
+Las migraciones corren al arrancar el contenedor. Variables (detalle y comentarios en `.env.example`): `DATABASE_URL` (host `db`), `POSTGRES_PASSWORD`, `ADMIN_PASSWORD_HASH` (entre comillas simples, contiene `$`), `APP_ORIGIN`, `APP_TIMEZONE`, `PORT`, `TRUST_PROXY` (subred de la red `web`), `NODE_ENV=production`, `WEB_DIST_DIR`, `GITHUB_WEBHOOK_SECRET` (v2). Con `docker run --env-file` las comillas no se quitan: ahí el hash va sin comillas.

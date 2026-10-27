@@ -1,0 +1,43 @@
+# Producción en Nexus (RD-02). Las variables salen de .env (copia de .env.example).
+# Ningún servicio publica puertos: nginx-proxy llega a `logbook:3000` por la red externa `web`.
+services:
+  logbook:
+    build: .
+    container_name: logbook
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - web
+      - logbook_internal
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/api/v1/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  db:
+    image: postgres:18-alpine
+    container_name: logbook-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: logbook
+      POSTGRES_DB: logbook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+    volumes:
+      - /srv/data/logbook/postgres:/var/lib/postgresql
+    networks:
+      - logbook_internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U logbook -d logbook']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  web:
+    external: true
+  logbook_internal:
