@@ -8,6 +8,7 @@ import { authLabel, authenticate, csrfGuard, requireAuth } from './auth/middlewa
 import { getDataSource } from './db/client.js';
 import { AppError, errorHandler } from './http/errors.js';
 import { apiRateLimit } from './http/rate-limit.js';
+import { mountWeb } from './http/web.js';
 import { logger as defaultLogger } from './logger.js';
 import { domainRoutes } from './modules/index.js';
 import { authRoutes, loginRoutes } from './routes/auth.js';
@@ -17,6 +18,8 @@ export interface AppOptions {
   logger?: Logger;
   /** Monta rutas extra bajo `/api/v1`, ya detrás de la autenticación obligatoria y el CSRF (los tests lo usan para su ruta de prueba). */
   extraRoutes?: (router: Router) => void;
+  /** Carpeta con la web compilada; por defecto `WEB_DIST_DIR`. Si no existe, la app solo sirve la API. */
+  webDistDir?: string;
 }
 
 /** `TRUST_PROXY`: vacío = sin proxy; número = saltos; si no, subredes/IPs separadas por coma (RS-05). */
@@ -125,6 +128,7 @@ export function createApp(options: AppOptions = {}): Express {
   });
 
   app.use('/api/v1', v1);
+  mountWeb(app, options.webDistDir ?? process.env['WEB_DIST_DIR']);
   app.use(errorHandler);
   return app;
 }

@@ -53,3 +53,5 @@ jobs:
       - run: pnpm --filter web test
       - run: pnpm build
       - run: pnpm audit --audit-level=high
+      # La imagen de producción tiene que construir (sin push).
+      - run: docker build -t logbook:ci .
