@@ -146,7 +146,9 @@ Todas las rutas bajo `/api/v1`, con `requireAuth`. Estructura sugerida: `src/mod
 | 6.2 | Botón **"Copiar resumen"** (RF-43): pide `GET /summary?format=md` con los mismos filtros y lo copia al portapapeles (`navigator.clipboard`), toast "Copiado". | Pegar en el vault da el markdown exacto del formato de la spec. Depende de 6.1. |
 | 6.3 ∥ | Paleta de búsqueda (`/`, `Ctrl+K`) según §4.6: debounce 200 ms, grupos Tarjetas/Bitácora, fragmentos resaltados, `↑↓ Enter`, `T-42` exacto primero. | Buscar `T-5` y `Enter` abre esa tarjeta; buscar un texto de una nota abre su tarjeta con la pestaña Bitácora. |
 
-**Fase 6 lista cuando**: comandos estándar en verde; un viernes puedo generar el resumen de la semana y pegarlo en el vault en menos de 10 segundos.
+**Fase 6 lista cuando**: comandos estándar en verde; un viernes puedo generar el resumen de la semana y pegarlo en el vault en menos de 10 segundos; checklist de fin de fase 6 de [[02_diseno]] §6.3 completo (NVDA, teclado latinoamericano, zoom 200 %), incluido **D-4** de la revisión ([[../reviews/fase-6-resumen-busqueda]] §7: si "Buscando…" en cada tecla molesta con NVDA, sale de la región viva), que queda abierto hasta mi prueba manual (decidido 2026-10-27).
+
+**🔒🎨 Revisión de Fable de la fase 6 (código + diseño)**: hecha el 2026-10-27 ([[../reviews/fase-6-resumen-busqueda]]), aprobada con cambios. Decisiones D-1..D-7 aprobadas ese día y pasadas a [[02_diseno]] §3, §4.4, §4.6, §6.1 y §6.3 y a RF-40, RF-42, RF-43 y RF-50; los ajustes de código (I-1..I-4, M-1..M-7, M-9, M-10) van en el commit de corrección de la rama. M-8 ("hoy" no cambia a medianoche con la pestaña abierta) puede esperar.
 
 ---
 
@@ -184,6 +186,7 @@ Todas las rutas bajo `/api/v1`, con `requireAuth`. Estructura sugerida: `src/mod
 | 9.1 ∥ | API `GET /timeline` (§4.10, RF-70): tarjetas activas con `barStart/barEnd/openEnded/urgency`. | Tests: una tarjeta sin `start_date` usa `created_at`; sin `due_date` → `openEnded: true`; vencida → `overdue`; 2 días → `soon`; Backlog/Hecho/archivadas no aparecen. |
 | 9.2 ∥ | Vista `/timeline` según [[02_diseno]] §4.5: zoom semana/mes, grilla, línea de hoy, barras con color de proyecto, estados vencida/próxima/bloqueada, grupos plegables por proyecto, rango en URL, clic abre `CardPanel`. Sin arrastre de barras. | Capturas semana y mes a 1440 px; `g t` navega; una tarjeta vencida se ve roja; clic abre el panel y `Esc` vuelve. Depende de 9.1 solo para datos reales (se puede desarrollar con msw en paralelo). |
 | 9.3 | Verificar RF-74 de punta a punta: mover a En curso completa `start_date` y la barra aparece sola. | Test de integración (msw) + prueba manual. |
+| 9.4 | **`Ctrl+K` desde el panel de detalle** cierra el panel y abre la paleta de búsqueda (hoy `/` y `Ctrl+K` quedan inactivos con cualquier `aria-modal` abierto, [[02_diseno]] §4.6; apilar dos modales haría pelear sus trampas de foco, por eso se cierra uno antes de abrir el otro). Anotado en la revisión de la fase 6 (D-6, decidido 2026-10-27). | Con `T-12` abierta, `Ctrl+K` cierra el panel, abre la paleta con el foco en el campo y `Esc` devuelve el foco al botón "Buscar"; `/` sigue sin hacer nada en el panel (es texto en la nota). |
 
 **Fase 9 lista cuando**: comandos estándar en verde; la vista me sirve para ver qué vence esta semana sin abrir el kanban.
 

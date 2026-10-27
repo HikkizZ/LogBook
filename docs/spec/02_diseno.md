@@ -155,9 +155,9 @@ Para modo oscuro después: mover los valores a `:root { ... }` y usar `@theme in
 ```
 
 - **Sidebar** fija de 240 px, fondo `--color-sidebar`, texto blanco, ítem activo con fondo `--color-sidebar-hover` y barra blanca de 3 px a la izquierda. Secciones: vistas globales (Mi día, Mi semana, Línea de tiempo), proyectos (punto con el color **suave** del proyecto + nombre + contador de "En curso"), al pie: Etiquetas, Tokens, Ajustes. Colapsable a 56 px (solo iconos) con `[` ; estado recordado en `localStorage`. El punto va en suave y no en acento porque el acento sobre `#03363D` da ~2:1 y no distingue nada; sobre blanco (barra superior, listas) el punto sigue en acento (decidido 2026-10-22, §2.3).
-- **Barra superior** de 56 px, fondo `--color-surface`, borde inferior `--color-border`. Izquierda: título de la vista (y nombre del proyecto con su punto). Centro/derecha: filtros, campo de búsqueda (`/`), botón primario "Nueva tarjeta" (`n`).
+- **Barra superior** de 56 px, fondo `--color-surface`, borde inferior `--color-border`. Izquierda: título de la vista (y nombre del proyecto con su punto). Centro/derecha: filtros, botón "Buscar" (con `aria-keyshortcuts="/ Control+K"`) que abre la paleta de §4.6, botón primario "Nueva tarjeta" (`n`). No es un campo de texto: la paleta ya es el campo y un input en la barra duplicaría el foco y el debounce (decidido 2026-10-27).
 - **Contenido** con padding 24 px sobre `--color-bg`.
-- **Panel de detalle** de tarjeta: lateral derecho de 480 px que se superpone al contenido (no lo empuja), con sombra `--shadow-lift`; se cierra con `Esc` o clic fuera. La URL cambia a `/p/<slug>/T-42` para poder enlazar. En pantallas < 1024 px ocupa todo el ancho.
+- **Panel de detalle** de tarjeta: lateral derecho de 480 px que se superpone al contenido (no lo empuja), con sombra `--shadow-lift`; se cierra con `Esc` o clic fuera. La URL cambia a `/p/<slug>/T-42` para poder enlazar. En pantallas < 1024 px ocupa todo el ancho. Si la tarjeta se abrió desde Mi día, Mi semana o la paleta de búsqueda, cerrar el panel **vuelve a esa vista** (con su `?date=`/`?project=`) y el foco al enlace de origen, no al tablero: el origen viaja en `state.from` de la navegación y `closePanel` lo usa si existe; sin él, va a `/p/<slug>` como siempre. Descarté `navigate(-1)` porque Atrás después de cerrar volvería a abrir la tarjeta (decidido 2026-10-27).
 - **Responsive**: la app está pensada para escritorio (uso en el trabajo y en el PC). Mínimo soportado 1024 px; bajo eso el kanban hace scroll horizontal y la sidebar se colapsa. No hay layout móvil (fuera de alcance).
 
 ---
@@ -210,10 +210,13 @@ Modal pequeño (420 px): título "¿Por qué queda bloqueada T-42?", textarea ob
 
 ### 4.4 Mi día (`/today`) y Mi semana (`/week`)
 
-- Cabecera: navegación `‹ hoy ›` o `‹ semana 43 ›`, selector de proyecto (todos por defecto), botón **"Copiar resumen"** (icono de portapapeles, confirmación "Copiado" 1,5 s).
-- Cuerpo: un bloque por proyecto (punto + nombre); dentro, una fila por tarjeta (`T-42` + título + chip de estado) con sus entradas indentadas. Mi semana agrupa primero por día (cabecera "Martes 21") y dentro por proyecto.
-- Sección final "Se movieron hoy": lista compacta `T-42 · Por hacer → En curso`.
-- Estado vacío: "Sin registros este día" + enlace "Ir al tablero".
+- Cabecera: navegación `‹ hoy ›` o `‹ semana 43 ›` (en semana, debajo el rango "19 oct – 25 oct" en xs muted), botón **"Hoy"** (deshabilitado cuando ya es la fecha actual: tras diez `‹` es la única vuelta rápida; decidido 2026-10-27), selector de proyecto (todos por defecto), botón **"Copiar resumen"** (icono de portapapeles, confirmación "Copiado" 1,5 s en el botón y toast "Copiado": el botón es lo que mira el ratón y el toast lo que oye el lector; decidido 2026-10-27).
+- La fecha y el proyecto van en la URL: `/today?date=YYYY-MM-DD&project=<slug>` y `/week?date=…` (cualquier día de la semana). Así la vista es enlazable ("mira el martes") y Atrás funciona. Las flechas y "Hoy" **agregan entradas al historial** (`push`, no `replace`): Atrás recorre día a día, que es lo que espero cuando fui retrocediendo; un `?date=` inválido cae en silencio a hoy y un `?project=` inexistente muestra "Este proyecto no existe." sin reintento (decidido 2026-10-27).
+- Cuerpo: un bloque por proyecto (punto + nombre); dentro, una fila por tarjeta (`T-42` + título + chip de estado) con sus entradas indentadas. Mi semana agrupa primero por día (cabecera "Martes 21") y dentro por proyecto. El chip muestra el **estado actual** de la tarjeta, no el que tenía ese día: la API no guarda el estado por día y el recorrido de "Se movieron" cuenta la historia. Ver "Hecho" junto a una nota del lunes no es un bug (decidido 2026-10-27).
+- Sección final "Se movieron hoy": lista compacta `T-42 · Por hacer → En curso`, reconstruida desde las entradas `moved` del período (sin segunda llamada). El título cambia con el período: "Se movieron hoy" / "ese día" / "esta semana" / "esa semana"; "hoy" sobre el martes pasado sería mentira (decidido 2026-10-27).
+- Estado vacío: "Sin registros este día" (en semana, "Sin registros esta semana") + enlace "Ir al tablero", que va al proyecto filtrado o, sin filtro, al primer proyecto activo; sin proyectos activos no hay enlace porque no hay tablero al que ir (decidido 2026-10-27).
+- Abrir una tarjeta desde aquí y cerrar el panel vuelve a esta vista con los mismos parámetros (§3, decidido 2026-10-27).
+- "Copiar resumen" con el portapapeles denegado (Safari, permisos): en vez de un error, aparece un `Textarea` con el markdown ya seleccionado y el foco dentro, para copiar con `Ctrl+C`; se pinta fuera de la fila de la cabecera para que no se apriete contra el botón y el selector (decidido 2026-10-27).
 
 ### 4.5 Línea de tiempo (`/timeline`, v1.5)
 
@@ -225,6 +228,15 @@ Modal pequeño (420 px): título "¿Por qué queda bloqueada T-42?", textarea ob
 ### 4.6 Búsqueda (`Ctrl+K` o `/`)
 
 Paleta de comandos centrada (560 px): input arriba, resultados en dos grupos (Tarjetas / Bitácora) con fragmento resaltado en `--color-primary-soft`, proyecto y estado a la derecha. `↑↓` navega, `Enter` abre. Si el texto es `T-42`, el primer resultado es esa tarjeta. El fragmento (`snippet`) llega de la API como texto escapado con `<mark>` como único HTML: se inyecta solo tras `DOMPurify.sanitize(snippet, { ALLOWED_TAGS: ['mark'], ALLOWED_ATTR: [] })`, y el `<mark>` se pinta con `--color-primary-soft`; título, proyecto y todo lo demás van como texto. Las tarjetas archivadas aparecen con el chip "archivada" (decidido 2026-10-21).
+
+Detalles cerrados tras la revisión de la fase 6 (decidido 2026-10-27):
+
+- El `Dialog` lleva el título **"Buscar" visible** encima del input: es el nombre accesible del diálogo y cuesta 24 px. Si algún día molesta, `sr-only` en el `h2`, no quitarlo.
+- Input con `role="combobox"` y `aria-activedescendant`; el foco nunca sale del campo. La opción activa se pinta con `--color-surface-hover` (no con `primary-soft`, para no tapar el `<mark>`); sobre ese fondo el resaltado casi desaparece y es la **negrita** del `<mark>` la que lo sostiene, lo que cumple §6.1. La opción activa se desplaza a la vista (`scrollIntoView({ block: 'nearest' })`, sin animación).
+- Filas archivadas: solo la **columna derecha** (proyecto, estado, chip "archivada") va atenuada; el fragmento y el título conservan ≥ 4,5:1 porque son lo que se lee para decidir, y el chip ya es el indicador no cromático. No se repite el 60 % de `CardTile`: ahí la ficha es un recordatorio, aquí el texto es el resultado.
+- Debounce de 200 ms, mínimo 3 caracteres, `limit=20` por grupo (40 filas como máximo; más no se recorre con flechas). La consulta anterior se mantiene en pantalla mientras llega la nueva (`keepPreviousData`, evita el parpadeo a lista vacía) **pero atenuada, con `aria-busy="true"` en el `listbox`, y `Enter` no abre nada** hasta que llegue la respuesta: un `Enter` rápido tras teclear es el gesto normal y abrir un resultado viejo es peor que esperar 200 ms. La caché de búsqueda no se reutiliza entre aperturas (`staleTime: 0`): cada apertura empieza vacía.
+- `/` y `Ctrl+K` no abren la paleta con otro `aria-modal` abierto, incluido el panel de detalle (dos modales apilados harían pelear sus trampas de foco). Buscar otra tarjeta desde el panel queda para v1.5: `Ctrl+K` cerrará el panel y abrirá la paleta ([[03_plan_implementacion]] fase 9).
+- `Enter` abre la tarjeta con la pestaña Bitácora y, al cerrar el panel, se vuelve a la vista desde la que se abrió la paleta (§3).
 
 ### 4.7 Tokens (`/tokens`)
 
@@ -273,8 +285,9 @@ Carga: skeletons grises (`surface-hover`) con animación suave; nunca spinners d
 - El color **nunca es el único indicador**: la urgencia lleva icono + texto ("vence en 2 días"); el estado lleva texto en el chip; WIP superado lleva el número (`4/3`) y un texto solo para lector ("4 tarjetas, límite 3: límite superado"). Ese contador es **todo** el aviso de RF-13: sin franja ni toast (decidido 2026-10-22).
 - Foco visible siempre (`:focus-visible`), anillo 2 px `--color-focus` con offset; en la sidebar, anillo blanco.
 - Objetivos de clic ≥ 32 px en escritorio (no hay móvil); botones de icono con `aria-label`.
-- Jerarquía: un `h1` por vista (título en la barra superior), `h2` por columna/proyecto, `h3` por tarjeta en Mi día.
-- Panel de detalle: `role="dialog"`, `aria-labelledby` al título, foco atrapado, `Esc` cierra, al cerrar el foco vuelve a la tarjeta.
+- Jerarquía: un `h1` por vista (título en la barra superior), `h2` por columna/proyecto, `h3` por tarjeta en Mi día. En Mi semana la jerarquía baja un nivel: `h2` por día, `h3` por proyecto, `h4` por tarjeta. El encabezado de tarjeta no cambia el aspecto (`text-sm font-normal`); está para que `H`/`3`/`4` de NVDA salten de tarjeta en tarjeta en una semana con 30 notas (decidido 2026-10-27).
+- Panel de detalle: `role="dialog"`, `aria-labelledby` al título, foco atrapado, `Esc` cierra, al cerrar el foco vuelve a la tarjeta (o al enlace de Mi día/Mi semana o al botón "Buscar" desde donde se abrió, §3; decidido 2026-10-27).
+- Mi día / Mi semana: el texto central de la navegación de fechas es `aria-live="polite"`, así que "Día siguiente" se oye con la fecha nueva sin mover el foco. En la paleta, la región `role="status"` anuncia "Escribe al menos 3 caracteres." / "Sin resultados." / "N resultados."; si "Buscando…" en cada tecla resulta ruidoso con NVDA, sale de la región viva y queda solo visible (pendiente en §6.3, decidido 2026-10-27).
 - Drag & drop con `@dnd-kit`: anuncios en vivo (`aria-live`) "T-42 tomada", "T-42 sobre En curso, posición 2", "T-42 soltada en la columna Hecho", "Movimiento cancelado. T-42 sigue en su sitio"; sensor de teclado activado. Reglas de los anuncios (decidido 2026-10-22):
   - "posición N" es la posición **visible** (con el filtro o la ventana de Hecho aplicados), que es la que tiene sentido para quien escucha; la API recibe el índice real sobre la columna completa. No "arreglarlo" al revés.
   - Con teclado, "sobre X" significa **siempre antes de X** (con ratón, después si suelto en la mitad inferior de X), y el anuncio al soltar describe la posición real resultante, no la tarjeta sobre la que estaba: así lo que oigo coincide con dónde cae.
@@ -304,7 +317,7 @@ Los atajos de una letra no se activan cuando el foco está en un input.
 
 Mi teclado es **latinoamericano**: `[` se escribe con AltGr, que en Windows llega como `ctrlKey && altKey`. El detector de atajos trata AltGr como "sin modificador" para los atajos de un carácter, así que `[` funciona en cualquier distribución; Alt solo sigue descartando el evento (decidido 2026-10-22). `/` es Shift+7 y llega como `/` sin AltGr, no tiene este problema.
 
-### 6.3 Checklist de revisión (fin de fase 5)
+### 6.3 Checklist de revisión (fin de fase 5 y fin de fase 6)
 
 - [x] Navegar todo el kanban, mover una tarjeta y bloquearla solo con teclado. `Space` → `→`: el primer anuncio ya dice la columna vecina (una sola pulsación).
 - [x] Lector de pantalla (NVDA): el arrastre anuncia origen y destino. (2026-10-26: Felipe siguió la guía de `docs/reviews/fase-5-detalle.md` §8, que cubre el arrastre del checklist del panel.)
@@ -316,6 +329,19 @@ Pendientes de la revisión #2 de la fase 5 ([[../reviews/fase-5-detalle]] §7), 
 
 - [x] **D-1** (NVDA) — verificado por Felipe el 2026-10-26, sin cambios necesarios: los anuncios del checklist (`aria-live` de su `DndContext`) se oyen dentro del panel bajo `aria-modal`. Por construcción deberían (dnd-kit sin `container` deja la región viva dentro del diálogo); si no se oyen, el ajuste es `accessibility.container` con el `ref` del `tabpanel`.
 - [x] **D-9** (zoom 200 %) — verificado por Felipe el 2026-10-26, sin cambios necesarios: cabecera del panel con tope de 55 vh (M-11: si la bitácora se queda sin sitio, bajar a 45 vh o pasar la cabecera menos la fila del ID al cuerpo con scroll) y barra superior sin scroll horizontal a 720 px CSS (M-12: `min-w-0` + `truncate` en el título, filtros que encojan o segunda fila bajo `lg`). Se decide con lo que mida.
+
+**Fin de fase 6.** Guía en [[../reviews/fase-6-resumen-busqueda]] §8 (decidido 2026-10-27 dejar abiertos los de prueba manual hasta que los haga con NVDA, teclado latinoamericano y zoom 200 %):
+
+- [ ] **Teclado latinoamericano**: en el tablero, Shift+7 (`/`) abre la paleta con el foco en el campo; dentro del campo de filtro, Shift+7 escribe `/` y `Ctrl+K` abre la paleta; AltGr+K no hace nada; con el panel abierto ninguno de los dos abre la paleta; `Esc` devuelve el foco a donde estaba.
+- [ ] **Combobox con NVDA**: al abrir se oye "Buscar, diálogo, Buscar tarjetas y bitácora, cuadro combinado, editable"; tras teclear, "N resultados." una vez; `↓` anuncia la opción con su fragmento y el grupo "Bitácora" al entrar; `Enter` abre el panel con "Bitácora, pestaña, seleccionada".
+- [ ] **D-4 (abierto)** — ruido del `status`: teclear una palabra de 8 letras despacio y contar cuántas veces se oye "Buscando…". Si molesta, sacar "Buscando…" de la región viva (dos `<p>`: uno `role="status"` solo con resultados/errores/"al menos 3", otro `aria-hidden` con el estado transitorio). Se decide oyéndolo, no antes.
+- [ ] `↓` diez veces en una búsqueda con más de 10 resultados: la fila activa sigue visible.
+- [ ] **Mi semana con NVDA**: `H` recorre `h1` (vista), `h2` (día), `h3` (proyecto), `4` salta de tarjeta en tarjeta; las flechas de fecha anuncian "semana 44, 26 oct – 1 nov" sin mover el foco.
+- [ ] **Copiar resumen**: `Tab` hasta el botón, `Enter`: toast "Copiado" y el botón cambia 1,5 s; pegar en el vault da el markdown exacto. Con el portapapeles bloqueado en Chrome: aparece el `Textarea` con el texto seleccionado y el foco dentro, sin apretarse en la cabecera.
+- [ ] **Zoom 200 %** (≈ 720 px): la cabecera de Mi día envuelve sin scroll horizontal; la paleta (560 px) cabe; las filas con `line-clamp-2` no desbordan.
+- [ ] Cerrar el panel de una tarjeta abierta desde Mi día y desde la paleta vuelve a la vista de origen con el mismo `?date=`/`?project=`.
+- [ ] Capturas de Mi día, Mi semana y la paleta a 1024 y 1440 px.
+- [x] Ninguna combinación de color fuera de la tabla de tokens (grep de `#` en `components/log` y `components/search` da cero).
 
 ---
 
