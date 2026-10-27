@@ -75,6 +75,10 @@ El token vence a los 90 días y se reemplaza creando otro. Probarlo:
 curl.exe -H "Authorization: Bearer lb_..." http://localhost:3200/api/v1/me
 ```
 
+## Skill de Claude Code
+
+`docs/skill/SKILL.md` es la skill que permite a Claude Code operar Logbook con `curl` contra la API (dejar registro en una tarjeta, listar pendientes, crear y mover tarjetas, resumen del día o la semana). Se instala copiándola a `C:\Users\fmira\.claude\skills\logbook\SKILL.md`; los secretos van en `C:\Users\fmira\.config\logbook\env`, fuera del repo. Los pasos están al final del propio archivo ("Instalación").
+
 ## Prueba de humo
 
 Con la API corriendo y un token Bearer, `scripts/smoke.sh` crea un proyecto y una tarjeta, agrega una nota, la mueve a `blocked` con motivo, busca y pide `/summary`; al final archiva el proyecto de prueba. No necesita `jq`.
