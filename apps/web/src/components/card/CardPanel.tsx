@@ -12,6 +12,8 @@ interface CardPanelProps {
   slug: string;
   /** Tarjeta abierta (`T-42`), o `null` para el modo creación. */
   cardRef: string | null;
+  /** Se abrió desde otra vista (Mi día, Mi semana, paleta): al cerrar, el foco vuelve allí y no al tablero. */
+  fromOrigin?: boolean;
   onClose: () => void;
   /** En modo creación: la tarjeta se creó. */
   onCreated: (ref: string) => void;
@@ -24,7 +26,14 @@ interface CardPanelProps {
  * `role="dialog"` con foco atrapado, `Esc` o clic fuera lo cierran y al cerrar el foco vuelve a la tarjeta del
  * tablero. La URL (`/p/:slug/:ref`) la gobierna quien lo monta.
  */
-export function CardPanel({ slug, cardRef, onClose, onCreated, onProjectChanged }: CardPanelProps) {
+export function CardPanel({
+  slug,
+  cardRef,
+  fromOrigin = false,
+  onClose,
+  onCreated,
+  onProjectChanged,
+}: CardPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   // La tarjeta que tenga el panel al cerrarse (si se creó una nueva, esa): a su ficha vuelve el foco.
@@ -34,6 +43,10 @@ export function CardPanel({ slug, cardRef, onClose, onCreated, onProjectChanged 
   }, [cardRef]);
 
   // Quién tenía el foco al abrir: se lee al renderizar, antes de que un campo con `autoFocus` se lo quite.
+  const fromOriginRef = useRef(fromOrigin);
+  useEffect(() => {
+    fromOriginRef.current = fromOrigin;
+  }, [fromOrigin]);
   const [previous] = useState(() => document.activeElement as HTMLElement | null);
   // Al cerrar, el foco vuelve a la tarjeta del kanban (o, si no hay, a quien lo tenía al abrir).
   useEffect(() => {
@@ -42,11 +55,15 @@ export function CardPanel({ slug, cardRef, onClose, onCreated, onProjectChanged 
         ? document.querySelector<HTMLElement>(`[data-card-ref="${lastRef.current}"]`)
         : null;
       // Si la tarjeta ya no está en el tablero (archivada, movida) ni quien tenía el foco: la primera ficha, o el botón de nueva tarjeta.
-      const target =
-        tile ??
-        (previous?.isConnected ? previous : null) ??
-        document.querySelector<HTMLElement>('[data-card-ref]') ??
-        document.querySelector<HTMLElement>('button[aria-keyshortcuts="n"]');
+      // Con una vista de origen (D-1) el último recurso es su contenido principal, no el tablero.
+      const target = fromOriginRef.current
+        ? (tile ??
+          (previous?.isConnected && previous !== document.body ? previous : null) ??
+          document.querySelector<HTMLElement>('main'))
+        : (tile ??
+          (previous?.isConnected ? previous : null) ??
+          document.querySelector<HTMLElement>('[data-card-ref]') ??
+          document.querySelector<HTMLElement>('button[aria-keyshortcuts="n"]'));
       target?.focus();
     };
   }, [previous]);

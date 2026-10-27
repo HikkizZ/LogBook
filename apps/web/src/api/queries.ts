@@ -12,6 +12,7 @@ import type {
 import { applyMove, appendCard } from '../lib/board';
 import { useToast } from '../components/ui/Toast';
 import { api, ApiError } from './client';
+import { invalidateLog } from './log-queries';
 
 export const queryKeys = {
   me: ['me'] as const,
@@ -118,6 +119,7 @@ export function useMoveCard(slug: string) {
     onSettled: (_data, _error, vars) => {
       // El detalle del panel (estado, fechas y entrada `moved`) ya no es el que hay en caché.
       void queryClient.invalidateQueries({ queryKey: queryKeys.card(vars.ref) });
+      invalidateLog(queryClient);
       // Con otro movimiento en vuelo se espera al último: refrescar antes pisaría su cambio optimista.
       if (queryClient.isMutating({ mutationKey: ['move-card'] }) > 1) return;
       void queryClient.invalidateQueries({ queryKey: key });

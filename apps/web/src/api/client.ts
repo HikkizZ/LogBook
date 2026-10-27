@@ -50,10 +50,16 @@ interface RequestOptions {
   body?: unknown;
   /** `POST /auth/login`: un 401 es "contraseña incorrecta", no una sesión vencida. */
   skipUnauthorizedHandler?: boolean;
+  /** La respuesta es texto (p. ej. `GET /summary?format=md`), no JSON. */
+  text?: boolean;
+  /** Cancela la petición (p. ej. la búsqueda que ya no es la actual). */
+  signal?: AbortSignal;
 }
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = {
+    Accept: options.text ? 'text/markdown' : 'application/json',
+  };
   if (MUTATING.has(method)) headers['X-Logbook-CSRF'] = '1';
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
@@ -64,13 +70,17 @@ async function request<T>(method: string, path: string, options: RequestOptions 
       headers,
       credentials: 'same-origin',
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal,
     });
-  } catch {
+  } catch (error) {
+    // Una cancelación pedida por quien llama no es un fallo de red.
+    if (error instanceof Error && error.name === 'AbortError') throw error;
     throw new ApiError(0, 'NETWORK', 'No se pudo conectar con el servidor');
   }
 
   if (res.ok) {
     sessionActive = !path.startsWith('/auth/logout');
+    if (options.text) return (await res.text()) as T;
     return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
@@ -103,7 +113,9 @@ async function readError(res: Response): Promise<ApiError> {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
+  get: <T>(path: string, options?: Pick<RequestOptions, 'signal'>) =>
+    request<T>('GET', path, options),
+  getText: (path: string) => request<string>('GET', path, { text: true }),
   post: <T>(
     path: string,
     body?: unknown,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router';
 import { NewCardProvider, useNewCardAction } from '../../app/NewCardContext';
 import { useHotkeys } from '../../hooks/useHotkeys';
+import { SearchPalette } from '../search/SearchPalette';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -44,6 +45,7 @@ function Shell() {
   const navigate = useNavigate();
   const [userCollapsed, setUserCollapsed] = useState(readCollapsed);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const narrow = useNarrowViewport();
   const collapsed = userCollapsed || narrow;
 
@@ -58,8 +60,9 @@ function Shell() {
     }
   };
 
-  // TODO(fase 6.3): `/` y Ctrl+K (búsqueda) se enlazan aquí cuando exista.
   useHotkeys({
+    '/': () => setSearchOpen(true),
+    'ctrl+k': () => setSearchOpen(true),
     n: () => newCard?.(),
     '[': toggleSidebar,
     'g d': () => void navigate('/today'),
@@ -72,11 +75,12 @@ function Shell() {
     <div className="flex h-screen">
       <Sidebar collapsed={collapsed} narrow={narrow} onToggle={toggleSidebar} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
-        <main className="flex-1 overflow-auto bg-bg p-6">
+        <Topbar onSearch={() => setSearchOpen(true)} />
+        <main tabIndex={-1} className="flex-1 overflow-auto bg-bg p-6 focus-visible:outline-none">
           <Outlet />
         </main>
       </div>
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
       <ShortcutsDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );

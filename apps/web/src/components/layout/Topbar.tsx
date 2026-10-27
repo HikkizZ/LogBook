@@ -17,7 +17,7 @@ const TITLES: Record<string, string> = {
 };
 
 /** Barra superior (§3): 56 px, título de la vista como único `h1`. */
-export function Topbar() {
+export function Topbar({ onSearch }: { onSearch: () => void }) {
   const { pathname } = useLocation();
   const projectMatch = useMatch('/p/:slug/*');
   // M-7 (fase 4): los filtros siguen visibles con el panel abierto (`/p/:slug/:ref`), el tablero sigue detrás.
@@ -40,8 +40,7 @@ export function Topbar() {
       </h1>
       {boardMatch && <BoardFilters />}
       <div className="ml-auto flex items-center gap-2">
-        {/* TODO(fase 6.3): campo de búsqueda (`/`, Ctrl+K). */}
-        <Button variant="secondary" disabled>
+        <Button variant="secondary" aria-keyshortcuts="/ Control+K" onClick={onSearch}>
           Buscar
         </Button>
         <Button disabled={!newCard} aria-keyshortcuts="n" onClick={() => newCard?.()}>

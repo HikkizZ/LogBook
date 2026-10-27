@@ -1,5 +1,6 @@
 import { closestCorners, type KeyboardCoordinateGetter } from '@dnd-kit/core';
 import { cardPrioritySchema, type CardDto, type CardPriority, type CardStatus } from 'shared';
+import type { ChipTone } from '../components/ui/Chip';
 
 /** Rejilla de seis columnas del tablero (y de su esqueleto): 160 px mínimo cada una. */
 export const BOARD_GRID_CLASS = 'grid grid-cols-[repeat(6,minmax(10rem,1fr))] gap-4';
@@ -18,6 +19,16 @@ export const STATUS_NAME = Object.fromEntries(COLUMNS.map((c) => [c.status, c.na
   CardStatus,
   string
 >;
+
+/** Chip de estado (§2.2). */
+export const STATUS_TONE: Record<CardStatus, ChipTone> = {
+  backlog: 'neutral',
+  todo: 'neutral',
+  in_progress: 'info',
+  review: 'info',
+  blocked: 'danger',
+  done: 'success',
+};
 
 export const PRIORITY_NAME: Record<CardPriority, string> = {
   urgent: 'Urgente',
