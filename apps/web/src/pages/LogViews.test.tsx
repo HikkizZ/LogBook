@@ -305,3 +305,23 @@ describe('Revisión fase 6', () => {
     expect(screen.getByText(/2 mar 2020 – 8 mar 2020/)).toBeVisible();
   });
 });
+
+describe('navegación por fecha (D-5)', () => {
+  it('D-5 §4.4: las flechas y "Hoy" añaden una entrada al historial: Atrás vuelve al día anterior', async () => {
+    const user = userEvent.setup();
+    renderLog('/today?date=2026-10-21', EMPTY);
+    await screen.findByText('Sin registros este día');
+
+    await user.click(screen.getByRole('button', { name: 'Día siguiente' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/today?date=2026-10-22');
+    await user.click(screen.getByRole('button', { name: 'Día siguiente' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/today?date=2026-10-23');
+    await user.click(screen.getByRole('button', { name: 'Hoy' }));
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/today$/);
+
+    await user.click(screen.getByRole('button', { name: 'Atrás (prueba)' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/today?date=2026-10-23');
+    await user.click(screen.getByRole('button', { name: 'Atrás (prueba)' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/today?date=2026-10-22');
+  });
+});

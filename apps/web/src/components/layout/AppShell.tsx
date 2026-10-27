@@ -76,7 +76,7 @@ function Shell() {
       <Sidebar collapsed={collapsed} narrow={narrow} onToggle={toggleSidebar} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onSearch={() => setSearchOpen(true)} />
-        <main className="flex-1 overflow-auto bg-bg p-6">
+        <main tabIndex={-1} className="flex-1 overflow-auto bg-bg p-6 focus-visible:outline-none">
           <Outlet />
         </main>
       </div>

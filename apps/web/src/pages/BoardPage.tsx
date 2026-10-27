@@ -21,12 +21,19 @@ export function BoardPage() {
   return <ProjectBoard key={slug} slug={slug} />;
 }
 
+/** `value` si es una ruta interna (`/…`, no `//host` ni `/\host`); si no, `null`. */
+function internalPath(value: unknown): string | null {
+  return typeof value === 'string' && /^\/(?![/\\])/.test(value) ? value : null;
+}
+
 /** Carga las tarjetas y deja el resto al `Board`. */
 function ProjectBoard({ slug }: { slug: string }) {
   const [params] = useSearchParams();
   const { ref = null } = useParams();
   const navigate = useNavigate();
-  const { search } = useLocation();
+  const { search, state } = useLocation();
+  // D-1: Mi día, Mi semana y la paleta pasan su ruta en `state.from`; solo se acepta una ruta interna.
+  const from = internalPath((state as { from?: unknown } | null)?.from);
   const cards = useProjectCards(slug);
   const projects = useProjects();
   const settings = useSettings();
@@ -50,22 +57,25 @@ function ProjectBoard({ slug }: { slug: string }) {
     setQuickAddStatus('todo');
   }, []);
 
-  // Cerrar el panel vuelve al tablero y conserva los filtros de la URL.
+  // Cerrar el panel vuelve a la vista de origen (D-1) o, sin ella, al tablero conservando los filtros de la URL.
   const closePanel = useCallback(() => {
     setCreating(false);
-    if (ref) void navigate({ pathname: `/p/${slug}`, search });
-  }, [navigate, ref, search, slug]);
+    if (!ref) return;
+    if (from) void navigate(from);
+    else void navigate({ pathname: `/p/${slug}`, search });
+  }, [from, navigate, ref, search, slug]);
   const showCard = useCallback(
     (cardRef: string, projectSlug = slug) => {
       setCreating(false);
-      void navigate({ pathname: `/p/${projectSlug}/${cardRef}`, search }, { replace: true });
+      void navigate({ pathname: `/p/${projectSlug}/${cardRef}`, search }, { replace: true, state });
     },
-    [navigate, search, slug],
+    [navigate, search, slug, state],
   );
   const panel = (ref !== null || creating) && (
     <CardPanel
       slug={slug}
       cardRef={ref}
+      fromOrigin={from !== null}
       onClose={closePanel}
       onCreated={showCard}
       onProjectChanged={(projectSlug) => ref && showCard(ref, projectSlug)}

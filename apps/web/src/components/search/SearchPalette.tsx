@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { SEARCH_MIN_LENGTH, type CardDto, type CardStatus } from 'shared';
 import { useProjects } from '../../api/queries';
 import { useSearch } from '../../api/search-queries';
@@ -42,6 +42,8 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
 
 function PaletteBody({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  // D-1: la tarjeta abierta desde la paleta vuelve a la vista donde se abrió la paleta al cerrar el panel.
+  const { pathname, search: locationSearch } = useLocation();
   const ids = useId();
   const listId = `${ids}-list`;
   const [text, setText] = useState('');
@@ -74,6 +76,8 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
     snippet: r.snippet,
   }));
   const rows = [...cards, ...entries];
+  // D-2: con `keepPreviousData` las filas pueden ser de la consulta anterior; entonces se atenúan y no se abren.
+  const stale = !tooShort && (search.isPlaceholderData || q !== trimmedText);
   const current = Math.min(active, rows.length - 1);
   const optionId = (i: number) => `${ids}-opt-${i}`;
 
@@ -86,9 +90,11 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
 
   // Una entrada de bitácora abre su tarjeta; el panel arranca en la pestaña Bitácora (CardDetail).
   const openRow = (row: Row | undefined) => {
-    if (!row) return;
+    if (!row || stale) return;
     onClose();
-    void navigate(`/p/${row.card.project}/${row.card.ref}`);
+    void navigate(`/p/${row.card.project}/${row.card.ref}`, {
+      state: { from: pathname + locationSearch },
+    });
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -106,7 +112,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
   let status: string;
   if (tooShort) status = `Escribe al menos ${SEARCH_MIN_LENGTH} caracteres.`;
   else if (search.isError) status = 'No se pudo buscar. Intenta de nuevo.';
-  else if (!data || q !== trimmedText) status = 'Buscando…';
+  else if (!data || stale) status = 'Buscando…';
   else if (rows.length === 0) status = 'Sin resultados.';
   else status = `${rows.length} ${rows.length === 1 ? 'resultado' : 'resultados'}.`;
 
@@ -131,7 +137,6 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
               className={cn(
                 'flex cursor-pointer items-start justify-between gap-3 rounded-sm px-2 py-2',
                 index === current && 'bg-surface-hover',
-                row.card.archivedAt && 'opacity-60',
               )}
             >
               <div className="flex min-w-0 flex-col gap-1">
@@ -143,7 +148,12 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
                   <span className="font-mono">{row.card.ref}</span> · {row.card.title}
                 </span>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-fg-muted">
+              <div
+                className={cn(
+                  'flex shrink-0 flex-col items-end gap-1 text-xs text-fg-muted',
+                  row.card.archivedAt && 'opacity-60',
+                )}
+              >
                 <span>{projectName(row.card.project)}</span>
                 <span className="inline-flex items-center gap-1">
                   <span
@@ -185,7 +195,8 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         id={listId}
         role="listbox"
         aria-label="Resultados"
-        className="mt-2 max-h-96 overflow-y-auto"
+        aria-busy={stale}
+        className={cn('mt-2 max-h-96 overflow-y-auto', stale && 'opacity-60')}
       >
         {renderGroup('Tarjetas', cards, 0)}
         {renderGroup('Bitácora', entries, cards.length)}

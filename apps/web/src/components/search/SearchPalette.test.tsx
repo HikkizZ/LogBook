@@ -296,4 +296,71 @@ describe('paleta de búsqueda (6.3)', () => {
 
     await waitFor(() => expect(aborted).toEqual(['factura']));
   });
+
+  it('D-2 M-2 §4.6: mientras llega la consulta nueva la lista se atenúa, aria-busy y Enter no abre lo viejo', async () => {
+    const user = userEvent.setup();
+    const a = makeCard('todo', { number: 1, title: 'Primera' });
+    const b = makeCard('todo', { number: 2, title: 'Segunda' });
+    renderPanel([a, b]);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queries: string[] = [];
+    server.use(
+      http.get(url('/search'), async ({ request }) => {
+        const q = new URL(request.url).searchParams.get('q') ?? '';
+        queries.push(q);
+        if (q === 'primer') {
+          await gate;
+          return HttpResponse.json(hits([{ card: b, snippet: 'Segunda' }]));
+        }
+        return HttpResponse.json(hits([{ card: a, snippet: 'Primera' }]));
+      }),
+    );
+    await openPalette(user);
+
+    await user.keyboard('prim');
+    const list = await screen.findByRole('listbox', { name: 'Resultados' });
+    await within(list).findByRole('option');
+    expect(list).not.toHaveAttribute('aria-busy', 'true');
+
+    await user.keyboard('er');
+    await waitFor(() => expect(queries).toEqual(['prim', 'primer']));
+    expect(list).toHaveAttribute('aria-busy', 'true');
+    expect(list.className).toMatch(/opacity/);
+
+    await user.keyboard('{Enter}');
+    expect(location()).toHaveTextContent(/^\/p\/siga$/);
+    expect(screen.getByRole('dialog', { name: 'Buscar' })).toBeInTheDocument();
+
+    release();
+    await waitFor(() => expect(list).not.toHaveAttribute('aria-busy', 'true'));
+    await within(list).findByText('Segunda');
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(location()).toHaveTextContent('/p/siga/T-2'));
+  });
+
+  it('D-3 M-5 §4.6: en una fila archivada solo la columna derecha se atenúa; el texto principal no', async () => {
+    const user = userEvent.setup();
+    const archived = makeCard('done', {
+      number: 8,
+      title: 'Vieja',
+      archivedAt: '2026-10-01T00:00:00.000Z',
+    });
+    renderPanel([makeCard('todo', { number: 1 })]);
+    fakeSearch(() => hits([{ card: archived, snippet: 'antigua <mark>factura</mark>' }]));
+    await openPalette(user);
+
+    await user.keyboard('factura');
+    const option = await palette().findByRole('option');
+
+    expect(option.className).not.toMatch(/opacity/);
+    const mark = option.querySelector('mark');
+    expect(mark?.closest('[class*="opacity"]')).toBeNull();
+    expect(
+      within(option).getByText('Vieja', { exact: false }).closest('[class*="opacity"]'),
+    ).toBeNull();
+    expect(within(option).getByText('archivada').closest('[class*="opacity"]')).not.toBeNull();
+  });
 });

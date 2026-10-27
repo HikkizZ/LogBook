@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import type { CardDto, LogEntryDto, ProjectDto } from 'shared';
 import { createQueryClient } from '../api/query-client';
 import type { LogView } from '../api/log-queries';
@@ -50,7 +50,15 @@ export interface LogApi {
 
 function LocationProbe() {
   const { pathname, search } = useLocation();
-  return <output data-testid="location">{pathname + search}</output>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="location">{pathname + search}</output>
+      <button type="button" onClick={() => void navigate(-1)}>
+        Atrás (prueba)
+      </button>
+    </>
+  );
 }
 
 /** Renderiza `/today` o `/week` con una API falsa: `GET /log` responde `view`, `GET /summary` responde `summary`. */

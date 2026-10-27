@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
 import type { CardStatus, LogEntryDto } from 'shared';
 import { ApiError, isUnauthorized } from '../../api/client';
 import { fetchSummary, useLogView, type LogFilters, type LogView } from '../../api/log-queries';
@@ -65,7 +65,8 @@ export function LogViewScreen({ mode }: { mode: LogViewMode }) {
       if (value) next.set(key, value);
       else next.delete(key);
     }
-    setParams(next);
+    // D-5: cada cambio añade una entrada al historial; "atrás" vuelve al día/semana (o filtro) anterior.
+    setParams(next, { replace: false });
   };
 
   const step = mode === 'day' ? 1 : 7;
@@ -237,6 +238,9 @@ function LogBody({
   firstProjectSlug: string | null;
 }) {
   const log = useLogView(filters);
+  // D-1: la tarjeta abierta desde aquí vuelve a esta vista (con su fecha y filtro) al cerrar el panel.
+  const { pathname, search } = useLocation();
+  const cardState = { from: pathname + search };
 
   if (log.isPending) return <LogSkeleton />;
   if (log.isError) {
@@ -309,6 +313,8 @@ function LogBody({
                     <CardHeading className="m-0 text-sm font-normal">
                       <Link
                         to={`/p/${project.slug}/${card.ref}`}
+                        state={cardState}
+                        data-card-ref={card.ref}
                         className="flex items-center gap-2 text-sm text-fg no-underline hover:underline focus-visible:outline-2 focus-visible:outline-focus"
                       >
                         <span className="font-mono text-xs text-fg-muted">{card.ref}</span>{' '}
@@ -338,6 +344,8 @@ function LogBody({
               <li key={card.ref} className="text-sm text-fg">
                 <Link
                   to={`/p/${card.project}/${card.ref}`}
+                  state={cardState}
+                  data-card-ref={card.ref}
                   className="text-fg no-underline hover:underline focus-visible:outline-2 focus-visible:outline-focus"
                 >
                   <span className="font-mono text-xs text-fg-muted">{card.ref}</span>
