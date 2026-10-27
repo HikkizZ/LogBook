@@ -52,6 +52,8 @@ interface RequestOptions {
   skipUnauthorizedHandler?: boolean;
   /** La respuesta es texto (p. ej. `GET /summary?format=md`), no JSON. */
   text?: boolean;
+  /** Cancela la petición (p. ej. la búsqueda que ya no es la actual). */
+  signal?: AbortSignal;
 }
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
@@ -68,8 +70,11 @@ async function request<T>(method: string, path: string, options: RequestOptions 
       headers,
       credentials: 'same-origin',
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal,
     });
-  } catch {
+  } catch (error) {
+    // Una cancelación pedida por quien llama no es un fallo de red.
+    if (error instanceof Error && error.name === 'AbortError') throw error;
     throw new ApiError(0, 'NETWORK', 'No se pudo conectar con el servidor');
   }
 
@@ -108,7 +113,8 @@ async function readError(res: Response): Promise<ApiError> {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
+  get: <T>(path: string, options?: Pick<RequestOptions, 'signal'>) =>
+    request<T>('GET', path, options),
   getText: (path: string) => request<string>('GET', path, { text: true }),
   post: <T>(
     path: string,

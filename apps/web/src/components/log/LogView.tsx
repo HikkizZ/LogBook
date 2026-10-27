@@ -4,10 +4,10 @@ import type { CardStatus, LogEntryDto } from 'shared';
 import { ApiError, isUnauthorized } from '../../api/client';
 import { fetchSummary, useLogView, type LogFilters, type LogView } from '../../api/log-queries';
 import { useProjects, useSettings } from '../../api/queries';
-import { STATUS_NAME } from '../../lib/board';
+import { STATUS_NAME, STATUS_TONE } from '../../lib/board';
 import { cn } from '../../lib/cn';
 import { projectDotClass } from '../../lib/colors';
-import { formatShortDate, todayIn } from '../../lib/dates';
+import { clock, formatShortDate, todayIn } from '../../lib/dates';
 import {
   addDays,
   formatDayHeading,
@@ -19,7 +19,6 @@ import {
 import { Markdown } from '../card/Markdown';
 import { CopyIcon } from '../card/card-icons';
 import { Button, Chip, Select, Skeleton, Textarea, useToast } from '../ui';
-import type { ChipTone } from '../ui/Chip';
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from '../ui/icons';
 
 export type LogViewMode = 'day' | 'week';
@@ -27,28 +26,19 @@ export type LogViewMode = 'day' | 'week';
 const FEEDBACK_MS = 1500;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const STATUS_TONE: Record<CardStatus, ChipTone> = {
-  backlog: 'neutral',
-  todo: 'neutral',
-  in_progress: 'info',
-  review: 'info',
-  blocked: 'danger',
-  done: 'success',
-};
-
 /** `?date=YYYY-MM-DD` válido o `null` (entonces manda "hoy"). */
 function parseDate(value: string | null): string | null {
   if (!value || !DATE_RE.test(value)) return null;
   return Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? null : value;
 }
 
-function clock(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('es', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZone,
-  }).format(new Date(iso));
+/** "19 oct – 25 oct"; con año ("28 dic 2026 – 3 ene 2027") si cruza de año o no es el actual. */
+function formatRange({ from, to }: { from: string; to: string }, today: string): string {
+  const year = from.slice(0, 4);
+  const withYear = year !== to.slice(0, 4) || year !== today.slice(0, 4);
+  const format = (date: string) =>
+    withYear ? `${formatShortDate(date)} ${date.slice(0, 4)}` : formatShortDate(date);
+  return `${format(from)} – ${format(to)}`;
 }
 
 /**
@@ -108,7 +98,7 @@ export function LogViewScreen({ mode }: { mode: LogViewMode }) {
               <>
                 semana {isoWeek(date)}
                 <span className="block text-xs font-normal text-fg-muted">
-                  {formatShortDate(range.from)} – {formatShortDate(range.to)}
+                  {formatRange(range, today)}
                 </span>
               </>
             )}
@@ -125,30 +115,28 @@ export function LogViewScreen({ mode }: { mode: LogViewMode }) {
             Hoy
           </Button>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <label className="flex items-center gap-2 text-base text-fg-muted">
-            Proyecto
-            <Select
-              className="w-48"
-              value={project ?? ''}
-              onChange={(e) => update({ project: e.target.value || null })}
-            >
-              <option value="">Todos</option>
-              {(projects.data ?? [])
-                .filter((p) => !p.archivedAt || p.slug === project)
-                .map((p) => (
-                  <option key={p.slug} value={p.slug}>
-                    {p.name}
-                  </option>
-                ))}
-            </Select>
-          </label>
-          {/* Con `key`, otra vista (fecha o proyecto distintos) descarta el respaldo del resumen anterior. */}
-          <CopySummary
-            key={`${filters.from}|${filters.to}|${filters.project ?? ''}`}
-            filters={filters}
-          />
-        </div>
+        <label className="ml-auto flex items-center gap-2 text-base text-fg-muted">
+          Proyecto
+          <Select
+            className="w-48"
+            value={project ?? ''}
+            onChange={(e) => update({ project: e.target.value || null })}
+          >
+            <option value="">Todos</option>
+            {(projects.data ?? [])
+              .filter((p) => !p.archivedAt || p.slug === project)
+              .map((p) => (
+                <option key={p.slug} value={p.slug}>
+                  {p.name}
+                </option>
+              ))}
+          </Select>
+        </label>
+        {/* Con `key`, otra vista (fecha o proyecto distintos) descarta el respaldo del resumen anterior. */}
+        <CopySummary
+          key={`${filters.from}|${filters.to}|${filters.project ?? ''}`}
+          filters={filters}
+        />
       </div>
       <LogBody
         mode={mode}
@@ -289,6 +277,8 @@ function LogBody({
         ? 'Se movieron esta semana'
         : 'Se movieron esa semana';
 
+  const CardHeading = mode === 'week' ? 'h4' : 'h3';
+
   return (
     <div className="flex flex-col gap-8">
       {days.map((day) => (
@@ -315,14 +305,17 @@ function LogBody({
                     key={card.ref}
                     className="rounded-md border border-border bg-surface p-3 shadow-card"
                   >
-                    <Link
-                      to={`/p/${project.slug}/${card.ref}`}
-                      className="flex items-center gap-2 text-sm text-fg no-underline hover:underline focus-visible:outline-2 focus-visible:outline-focus"
-                    >
-                      <span className="font-mono text-xs text-fg-muted">{card.ref}</span>{' '}
-                      <span className="min-w-0 flex-1 truncate">{card.title}</span>{' '}
-                      <Chip tone={STATUS_TONE[card.status]}>{STATUS_NAME[card.status]}</Chip>
-                    </Link>
+                    {/* §6.1: un encabezado por tarjeta (h3 en Mi día; en Mi semana el día es h2 y el proyecto h3). */}
+                    <CardHeading className="m-0 text-sm font-normal">
+                      <Link
+                        to={`/p/${project.slug}/${card.ref}`}
+                        className="flex items-center gap-2 text-sm text-fg no-underline hover:underline focus-visible:outline-2 focus-visible:outline-focus"
+                      >
+                        <span className="font-mono text-xs text-fg-muted">{card.ref}</span>{' '}
+                        <span className="min-w-0 flex-1 truncate">{card.title}</span>{' '}
+                        <Chip tone={STATUS_TONE[card.status]}>{STATUS_NAME[card.status]}</Chip>
+                      </Link>
+                    </CardHeading>
                     <ul className="m-0 mt-2 flex list-none flex-col gap-1 p-0 pl-4">
                       {entries.map((entry) => (
                         <EntryRow key={entry.id} entry={entry} timeZone={timeZone} />
@@ -375,7 +368,7 @@ function ProjectName({ name, color }: { name: string; color: string }) {
 function EntryRow({ entry, timeZone }: { entry: LogEntryDto; timeZone: string }) {
   const time = (
     <time dateTime={entry.occurredAt} className="w-11 shrink-0 text-xs text-fg-muted">
-      {clock(entry.occurredAt, timeZone)}
+      {clock(new Date(entry.occurredAt), timeZone)}
     </time>
   );
   // Las notas y los bloqueos son markdown mío: se pintan con el componente sanitizado (RS-12).
@@ -385,7 +378,7 @@ function EntryRow({ entry, timeZone }: { entry: LogEntryDto; timeZone: string })
         {time}
         <div className="min-w-0 flex-1">
           {entry.kind === 'blocked' && <Chip tone="danger">Bloqueado</Chip>}
-          <Markdown source={entry.body} className="text-sm" />
+          <Markdown source={entry.body} size="sm" />
         </div>
       </li>
     );

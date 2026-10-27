@@ -12,10 +12,13 @@ const SEARCH_LIMIT = 20;
 export function useSearch(q: string) {
   return useQuery({
     queryKey: ['search', q] as const,
-    queryFn: () =>
-      api.get<SearchResultDto>(`/search?q=${encodeURIComponent(q)}&limit=${SEARCH_LIMIT}`),
+    queryFn: ({ signal }) =>
+      api.get<SearchResultDto>(`/search?q=${encodeURIComponent(q)}&limit=${SEARCH_LIMIT}`, {
+        signal,
+      }),
     enabled: q.length >= SEARCH_MIN_LENGTH,
     placeholderData: keepPreviousData,
-    staleTime: 10_000,
+    // Sin caché fresca: una edición de título o estado no invalida la búsqueda y el debounce ya limita las peticiones.
+    staleTime: 0,
   });
 }

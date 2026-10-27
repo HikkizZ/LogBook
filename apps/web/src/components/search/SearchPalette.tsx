@@ -77,6 +77,11 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
   const current = Math.min(active, rows.length - 1);
   const optionId = (i: number) => `${ids}-opt-${i}`;
 
+  // §4.6, §6.1: con ↑↓ la opción activa no puede quedar fuera de la parte visible de la lista.
+  useEffect(() => {
+    document.getElementById(`${ids}-opt-${current}`)?.scrollIntoView({ block: 'nearest' });
+  }, [current, ids]);
+
   const projectName = (slug: string) => projects?.find((p) => p.slug === slug)?.name ?? slug;
 
   // Una entrada de bitácora abre su tarjeta; el panel arranca en la pestaña Bitácora (CardDetail).

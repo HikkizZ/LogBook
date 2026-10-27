@@ -1,13 +1,13 @@
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { CARD_PRIORITIES, type CardDetailDto, type CardPriority, type CardStatus } from 'shared';
+import { CARD_PRIORITIES, type CardDetailDto, type CardPriority } from 'shared';
 import { useArchiveCard, useCardDetail, useUpdateCard } from '../../api/card-queries';
 import { ApiError } from '../../api/client';
 import { useProjects } from '../../api/queries';
 import { cn } from '../../lib/cn';
-import { PRIORITY_NAME, STATUS_NAME } from '../../lib/board';
+import { PRIORITY_NAME, STATUS_NAME, STATUS_TONE } from '../../lib/board';
 import { projectDotClass } from '../../lib/colors';
 import { Button } from '../ui/Button';
-import { Chip, type ChipTone } from '../ui/Chip';
+import { Chip } from '../ui/Chip';
 import { Dialog } from '../ui/Dialog';
 import { CloseIcon } from '../ui/icons';
 import { Input } from '../ui/Input';
@@ -21,16 +21,6 @@ import { DescriptionTab } from './DescriptionTab';
 import { LabelPicker } from './LabelPicker';
 import { LogTab } from './LogTab';
 import { TitleEditor } from './TitleEditor';
-
-/** Chip de estado (§2.2). */
-const STATUS_TONE: Record<CardStatus, ChipTone> = {
-  backlog: 'neutral',
-  todo: 'neutral',
-  in_progress: 'info',
-  review: 'info',
-  blocked: 'danger',
-  done: 'success',
-};
 
 type TabId = 'log' | 'description' | 'checklist';
 const MIN_DATE = '1970-01-01';

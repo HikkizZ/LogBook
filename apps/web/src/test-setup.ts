@@ -9,6 +9,9 @@ import { server } from './test/server';
  */
 configure({ asyncUtilTimeout: 10_000 });
 
+/** jsdom no implementa `scrollIntoView` (la paleta de búsqueda lo llama al mover la opción activa). */
+Element.prototype.scrollIntoView = () => undefined;
+
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());

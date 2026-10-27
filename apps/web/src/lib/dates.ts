@@ -61,7 +61,7 @@ function zoneParts(date: Date, timeZone: string): Record<string, string> {
 }
 
 /** Hora `HH:mm` de un instante en la zona dada. */
-function clock(date: Date, timeZone: string): string {
+export function clock(date: Date, timeZone: string): string {
   const p = zoneParts(date, timeZone);
   return `${p.hour}:${p.minute}`;
 }

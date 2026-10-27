@@ -267,3 +267,41 @@ describe('Copiar resumen (6.2)', () => {
     expect(box).toHaveAttribute('readonly');
   });
 });
+
+describe('Revisión fase 6', () => {
+  it('I-4 §6.1: en Mi día cada tarjeta es un h3 y el proyecto un h2', async () => {
+    renderLog('/today?date=2026-10-20', { days: WEEK.days.slice(0, 1), moved: [] }, '', ALL);
+
+    await screen.findByRole('heading', { level: 2, name: 'SIGA' });
+    const cards = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(cards).toEqual([
+      expect.stringContaining('Ordenar el vault'),
+      expect.stringContaining('Migrar facturas'),
+    ]);
+    expect(screen.getByRole('link', { name: /T-1 Migrar facturas/ }).closest('h3')).not.toBeNull();
+  });
+
+  it('I-4 §6.1: en Mi semana la tarjeta baja un nivel (h2 día, h3 proyecto, h4 tarjeta)', async () => {
+    renderLog('/week?date=2026-10-21', WEEK, '', ALL);
+
+    await screen.findByRole('heading', { level: 2, name: 'Martes 20' });
+    const cards = screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
+    expect(cards).toEqual([
+      expect.stringContaining('Ordenar el vault'),
+      expect.stringContaining('Migrar facturas'),
+      expect.stringContaining('Página de proyectos'),
+    ]);
+  });
+
+  it('M-7 RF-41: el rango de una semana que cruza el año lleva el año', async () => {
+    renderLog('/week?date=2026-12-30', EMPTY);
+    await screen.findByText('semana 53');
+    expect(screen.getByText(/28 dic 2026 – 3 ene 2027/)).toBeVisible();
+  });
+
+  it('M-7 RF-41: el rango de una semana de otro año que el actual lleva el año', async () => {
+    renderLog('/week?date=2020-03-04', EMPTY);
+    await screen.findByText('semana 10');
+    expect(screen.getByText(/2 mar 2020 – 8 mar 2020/)).toBeVisible();
+  });
+});

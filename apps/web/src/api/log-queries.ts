@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
 import type { CardDto, LogEntryDto, ProjectDto } from 'shared';
 import { api } from './client';
 
@@ -30,6 +30,11 @@ function queryString({ from, to, project }: LogFilters): string {
 export const logQueryKeys = {
   log: (f: LogFilters) => ['log', f.from, f.to, f.project] as const,
 };
+
+/** Toda vista de Mi día/semana en caché queda vieja: una nota o un movimiento cambia lo que muestra (RF-40..RF-42). */
+export function invalidateLog(qc: QueryClient): void {
+  void qc.invalidateQueries({ queryKey: ['log'] });
+}
 
 export function useLogView(filters: LogFilters) {
   return useQuery({

@@ -230,4 +230,70 @@ describe('paleta de búsqueda (6.3)', () => {
     expect(option).toHaveTextContent('negrita');
     expect(option).toHaveTextContent('<i>texto</i>');
   });
+
+  it('I-3 §4.6: ↓ desplaza la lista para que la opción activa quede a la vista', async () => {
+    const user = userEvent.setup();
+    const a = makeCard('todo', { number: 1, title: 'Primera' });
+    const b = makeCard('todo', { number: 2, title: 'Segunda' });
+    renderPanel([a, b]);
+    fakeSearch(() =>
+      hits([
+        { card: a, snippet: 'Primera' },
+        { card: b, snippet: 'Segunda' },
+      ]),
+    );
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    await openPalette(user);
+
+    await user.keyboard('prim');
+    const options = await palette().findAllByRole('option');
+    scrollIntoView.mockClear();
+    await user.keyboard('{ArrowDown}');
+
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' });
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(options[1]);
+    scrollIntoView.mockRestore();
+  });
+
+  it('M-4 RF-50: repetir una búsqueda vuelve a pedirla (la caché no sirve resultados viejos)', async () => {
+    const user = userEvent.setup();
+    const card = makeCard('todo', { number: 1, title: 'Titulo viejo' });
+    renderPanel([card]);
+    const queries = fakeSearch(() => hits([{ card, snippet: 'Titulo viejo' }]));
+    await openPalette(user);
+
+    await user.keyboard('titulo');
+    await waitFor(() => expect(queries).toEqual(['titulo']));
+    await palette().findByRole('option');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.keyboard('/');
+    await screen.findByRole('dialog', { name: 'Buscar' });
+    await user.keyboard('titulo');
+
+    await waitFor(() => expect(queries).toEqual(['titulo', 'titulo']));
+  });
+
+  it('M-3 RF-52: al cambiar la consulta se cancela la petición anterior que sigue en vuelo', async () => {
+    const user = userEvent.setup();
+    renderPanel([makeCard('todo', { number: 1 })]);
+    const aborted: string[] = [];
+    server.use(
+      http.get(url('/search'), async ({ request }) => {
+        const q = new URL(request.url).searchParams.get('q') ?? '';
+        request.signal.addEventListener('abort', () => aborted.push(q));
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        return HttpResponse.json(hits([]));
+      }),
+    );
+    await openPalette(user);
+
+    await user.keyboard('factura');
+    await new Promise((r) => setTimeout(r, 350));
+    await user.keyboard('s');
+
+    await waitFor(() => expect(aborted).toEqual(['factura']));
+  });
 });

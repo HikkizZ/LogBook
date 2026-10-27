@@ -98,4 +98,15 @@ describe('cliente de API', () => {
 
     await expect(api.get('/down')).rejects.toMatchObject({ status: 0, code: 'NETWORK' });
   });
+
+  it('M-3: una petición cancelada con signal lanza el AbortError tal cual, no un ApiError de red', async () => {
+    server.use(http.get(url('/slow'), () => HttpResponse.json({ ok: true })));
+    const controller = new AbortController();
+    controller.abort();
+
+    const err = await api.get('/slow', { signal: controller.signal }).catch((e: unknown) => e);
+
+    expect(err).not.toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ name: 'AbortError' });
+  });
 });

@@ -11,6 +11,7 @@ import type {
 } from 'shared';
 import { useToast } from '../components/ui/Toast';
 import { api, isUnauthorized } from './client';
+import { invalidateLog } from './log-queries';
 import { queryKeys } from './queries';
 
 // ---------------------------------------------------------------------------------------------
@@ -146,6 +147,7 @@ export function useAddLogEntry() {
       qc.setQueryData<LogEntryDto[]>(queryKeys.cardLog(entry.cardRef), (old) =>
         old ? [...old, entry].sort(byTime) : old,
       );
+      invalidateLog(qc);
     },
     onError: fail('No se pudo guardar la entrada'),
   });
@@ -162,6 +164,7 @@ export function useEditLogEntry() {
       qc.setQueryData<LogEntryDto[]>(queryKeys.cardLog(entry.cardRef), (old) =>
         old?.map((e) => (e.id === entry.id ? entry : e)),
       );
+      invalidateLog(qc);
     },
     onError: fail('No se pudo editar la entrada'),
   });
@@ -177,6 +180,7 @@ export function useDeleteLogEntry() {
       qc.setQueryData<LogEntryDto[]>(queryKeys.cardLog(entry.cardRef), (old) =>
         old?.filter((e) => e.id !== entry.id),
       );
+      invalidateLog(qc);
     },
     onError: fail('No se pudo borrar la entrada'),
   });
@@ -227,6 +231,7 @@ export function useUpdateCard(ref: string) {
       fail('No se pudo guardar el cambio')(error);
     },
     onSuccess: (response, patch, snap) => {
+      invalidateLog(qc);
       // Con otro cambio en vuelo (dos clics rápidos en las etiquetas) esta respuesta ya está vieja: se
       // conserva lo que se ve y manda la del último.
       const othersInFlight = qc.isMutating({ mutationKey: updateCardKey(ref) }) > 1;
@@ -262,6 +267,7 @@ export function useArchiveCard(ref: string) {
       api.post<CardDto>(`/cards/${ref}/${archive ? 'archive' : 'unarchive'}`),
     onSuccess: (card) => {
       syncCard(qc, card);
+      invalidateLog(qc);
       // Desarchivar la devuelve al final de su columna: el tablero la pide de nuevo.
       void qc.invalidateQueries({ queryKey: queryKeys.cards(card.project) });
       void qc.invalidateQueries({ queryKey: queryKeys.projects });
