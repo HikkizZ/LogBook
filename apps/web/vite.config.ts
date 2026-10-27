@@ -15,5 +15,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
+    // Con un worker por núcleo, jsdom + userEvent satura la CPU y los tests de interacción pasan de
+    // los 5 s por tiempo de espera, no por fallo. La mitad de los núcleos deja la suite estable.
+    maxWorkers: '50%',
   },
 });
