@@ -111,4 +111,6 @@ cp .env.example .env     # chmod 600; rellenar los valores
 docker compose up -d --build
 ```
 
+El despliegue real en Nexus (deploy key, `.env`, nginx, túnel, Cloudflare Access, respaldo y actualización) está paso a paso en [`docs/deploy/nexus.md`](docs/deploy/nexus.md); la revisión de seguridad de la imagen y el compose, en [`docs/reviews/fase-8-despliegue.md`](docs/reviews/fase-8-despliegue.md).
+
 Las migraciones corren al arrancar el contenedor. Variables (detalle y comentarios en `.env.example`): `DATABASE_URL` (host `db`), `POSTGRES_PASSWORD`, `ADMIN_PASSWORD_HASH` (entre comillas simples, contiene `$`), `APP_ORIGIN`, `APP_TIMEZONE`, `PORT`, `TRUST_PROXY` (subred de la red `web`), `NODE_ENV=production`, `WEB_DIST_DIR`, `GITHUB_WEBHOOK_SECRET` (v2). Con `docker run --env-file` las comillas no se quitan: ahí el hash va sin comillas.
