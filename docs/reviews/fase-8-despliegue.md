@@ -135,3 +135,10 @@ Consecuencias prácticas:
 ## 6. Estado
 
 - 2026-10-27: revisión escrita. Pendiente: decisiones de §5 y, si se aplican B-1/B-2, un commit `build:` en `fase-8-despliegue` antes de empezar la guía [[../deploy/nexus]].
+
+## Decisiones de Felipe (2026-10-31)
+
+- **B-3**: acepto en v1 que el rol `logbook` de Postgres sea superusuario. El riesgo es bajo porque la base no publica puertos y su red es interna (B-1). En v2, rol sin privilegios con un script de init.
+- **Respaldo**: el script vive en `nexus-infra/scripts/logbook-backup.sh`, junto al resto de la infraestructura del servidor.
+- **Cloudflare Access**: sesión de 24 h y One-time PIN a mi correo como único método de login.
+- **Merge antes del clon**: `fase-8-despliegue` se mergea a `main` antes de seguir la guía, porque el servidor clona `main`.
